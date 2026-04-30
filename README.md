@@ -1,13 +1,11 @@
-# Vehicle Dashboard v3.1 Cumulative
+# Vehicle Dashboard v3.2 Replace Dates
 
-แก้ตามคำขอ:
-1. Backend:
-   - ไม่ใช้ period/yod รวมจาก raw text ล่าสุด
-   - คำนวณจำนวนรถจาก daily_records ด้วย SQL SUM/COUNT จาก DB
-   - คำนวณยอดเงินสะสมจาก reports ทั้งหมด
-2. Frontend:
-   - เอาข้อความรายสัปดาห์ออก
-   - แสดงเป็น Dashboard ข้อมูลสะสมทั้งหมด
+แก้ logic ตามคำขอ:
+- เวลานำเข้าข้อมูลใหม่ ระบบจะดูวันที่ที่อยู่ในไฟล์
+- ลบข้อมูลเดิมของวันนั้นออกจาก `daily_records`
+- ใส่ข้อมูลใหม่เข้าไปแทน
+- ไม่บวกซ้ำเมื่ออัปโหลดข้อมูลวันเดิม
+- Weekly summary ใช้ `weekly_summaries` และ replace ตาม period เดิม
 
 ## Run
 
@@ -23,7 +21,7 @@ uvicorn app:app --reload
 
 ## Deploy Render
 
-ตั้งค่า:
+ตั้ง Environment Variable:
 
 ```text
 ADMIN_TOKEN=your-secret
