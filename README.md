@@ -1,13 +1,22 @@
-# Vehicle Weekly Dashboard v2
+# Vehicle Weekly Dashboard v3 Production
 
-อัปเกรดตามคำขอ:
-- Card รายวันแบบ Collapse/Expand
-- Pagination เพื่อรองรับข้อมูลเยอะ
+Production Data Model:
+- `reports` เก็บ raw text ที่นำเข้า
+- `daily_records` เก็บข้อมูลรายคัน
+- Deduplicate ด้วย `date + vehicle_type + company + item`
+- Dashboard query จาก daily_records โดยตรง
+- รองรับข้อมูลสะสมหลายสัปดาห์/หลายเดือน/หลายปี
+
+## Features
+- Append import
+- Deduplication
+- Cross-week date filtering
+- Search server-side
+- Collapse/Expand cards
+- Pagination
 - Export PDF
 - Export Excel
-- Auto Refresh ทุก 30 วินาที
-- UI Premium Polish
-- Search รายการรถ / บริษัท / กรมธรรม์
+- Auto Refresh 30s
 
 ## Run Local
 
@@ -21,12 +30,13 @@ uvicorn app:app --reload
 ```text
 /admin
 /dashboard
+/api/dashboard
 ```
 
-## Render
+## Deploy Render
 
-ใช้ไฟล์ `render.yaml` ได้เลย แล้วตั้งค่า:
+ตั้ง Environment Variable:
 
 ```text
-ADMIN_TOKEN=รหัสลับของคุณ
+ADMIN_TOKEN=your-secret-token
 ```

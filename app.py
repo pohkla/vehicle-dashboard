@@ -6,17 +6,23 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import FastAPI, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 DB_PATH = Path("vehicle_dashboard.db")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "change-this-token")
 
-app = FastAPI(title="Vehicle Weekly Dashboard")
+app = FastAPI(title="Vehicle Weekly Dashboard v3 Production")
+
+
+def connect_db() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
 def init_db() -> None:
-    with sqlite3.connect(DB_PATH) as conn:
+    with connect_db() as conn:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS reports (
@@ -26,31 +32,32 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS daily_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                report_id INTEGER NOT NULL,
+                date_text TEXT NOT NULL,
+                iso_date TEXT NOT NULL,
+                vehicle_type TEXT NOT NULL,
+                vehicle_title TEXT NOT NULL,
+                icon TEXT NOT NULL,
+                company TEXT,
+                item TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(iso_date, vehicle_type, COALESCE(company, ''), item)
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_records_iso_date ON daily_records(iso_date)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_records_vehicle_type ON daily_records(vehicle_type)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_records_item ON daily_records(item)")
         conn.commit()
 
 
 @app.on_event("startup")
 def startup() -> None:
     init_db()
-
-
-def save_report(raw_text: str) -> int:
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.execute(
-            "INSERT INTO reports (raw_text, created_at) VALUES (?, ?)",
-            (raw_text, datetime.utcnow().isoformat()),
-        )
-        conn.commit()
-        return int(cur.lastrowid)
-
-
-def get_latest_report() -> dict[str, Any] | None:
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            "SELECT id, raw_text, created_at FROM reports ORDER BY id DESC LIMIT 1"
-        ).fetchone()
-        return dict(row) if row else None
 
 
 def only_number(value: str) -> float:
@@ -90,13 +97,6 @@ def vehicle_meta(line: str) -> dict[str, str] | None:
     return None
 
 
-def count_from_header(line: str) -> int:
-    if "(" not in line or "คัน" not in line:
-        return 0
-    text = line.split("(", 1)[1].split("คัน", 1)[0]
-    return int(only_number(text) or 0)
-
-
 def parse_amounts(lines: list[str]) -> dict[str, int]:
     result = {"car": 0, "motorcycle": 0, "total": 0}
     for line in lines:
@@ -107,28 +107,36 @@ def parse_amounts(lines: list[str]) -> dict[str, int]:
         if not value:
             continue
         if "รวม" in line:
-            result["total"] = value
+            result["total"] += value
         elif "รถจักรยานยนต์" in line:
-            result["motorcycle"] = value
+            result["motorcycle"] += value
         elif "รถยนต์" in line:
-            result["car"] = value
+            result["car"] += value
     if not result["total"]:
         result["total"] = result["car"] + result["motorcycle"]
     return result
 
 
 def parse_period(lines: list[str]) -> str:
+    periods = []
     for line in lines:
         if "รายสัปดาห์" in line and any(ch.isdigit() for ch in line):
-            return line.replace("#", "").strip()
-    return "📊 รายสัปดาห์"
+            clean = line.replace("#", "").strip()
+            if clean not in periods:
+                periods.append(clean)
+    if not periods:
+        return "📊 รายสัปดาห์"
+    if len(periods) == 1:
+        return periods[0]
+    return f"📊 รวมข้อมูล {len(periods)} สัปดาห์"
 
 
 def parse_report(raw_text: str) -> dict[str, Any]:
     lines = [line.strip() for line in raw_text.replace(chr(13), "").splitlines()]
-    daily_data: list[dict[str, Any]] = []
-    current_day: dict[str, Any] | None = None
-    current_group: dict[str, Any] | None = None
+    rows: list[dict[str, Any]] = []
+    current_date_text = ""
+    current_iso_date = ""
+    current_meta: dict[str, str] | None = None
     current_company = ""
 
     for line in lines:
@@ -136,78 +144,184 @@ def parse_report(raw_text: str) -> dict[str, Any]:
             continue
 
         if "สรุปยอด" in line and "/" in line:
-            date_text = extract_date(line)
-            current_day = {
-                "date": date_text,
-                "isoDate": thai_date_to_iso(date_text),
-                "motorcycle": 0,
-                "pickup": 0,
-                "sedan": 0,
-                "groups": [],
-            }
-            daily_data.append(current_day)
-            current_group = None
+            current_date_text = extract_date(line)
+            current_iso_date = thai_date_to_iso(current_date_text)
+            current_meta = None
             current_company = ""
             continue
 
-        if current_day is None:
+        if not current_iso_date:
             continue
 
         meta = vehicle_meta(line)
         if meta:
-            current_group = {
-                "key": meta["key"],
-                "icon": meta["icon"],
-                "title": meta["title"],
-                "count": count_from_header(line),
-                "company": "",
-                "items": [],
-            }
-            current_day["groups"].append(current_group)
+            current_meta = meta
             current_company = ""
             continue
 
         if line.startswith("[") and line.endswith("]"):
             current_company = line[1:-1].strip()
-            if current_group and not current_group["items"]:
-                current_group["company"] = current_company
             continue
 
-        if line.startswith("•") and current_group:
+        if line.startswith("•") and current_meta:
             item_text = line[1:].strip().replace("_", " ")
-            if (
-                current_company
-                and current_group.get("company")
-                and current_group["company"] != current_company
-                and current_group["items"]
-            ):
-                current_group = {
-                    "key": current_group["key"],
-                    "icon": current_group["icon"],
-                    "title": current_group["title"],
-                    "count": 0,
+            rows.append(
+                {
+                    "date": current_date_text,
+                    "isoDate": current_iso_date,
+                    "vehicleType": current_meta["key"],
+                    "vehicleTitle": current_meta["title"],
+                    "icon": current_meta["icon"],
                     "company": current_company,
-                    "items": [],
+                    "item": item_text,
                 }
-                current_day["groups"].append(current_group)
-
-            if current_company and not current_group.get("company"):
-                current_group["company"] = current_company
-
-            current_group["items"].append(item_text)
-            current_group["count"] = len(current_group["items"])
-            key = current_group["key"]
-            current_day[key] = sum(
-                len(group["items"])
-                for group in current_day["groups"]
-                if group["key"] == key
             )
 
-    daily_data = [day for day in daily_data if day["groups"]]
     return {
         "period": parse_period(lines),
         "amounts": parse_amounts(lines),
+        "rows": rows,
+    }
+
+
+def save_import(raw_text: str) -> dict[str, int]:
+    parsed = parse_report(raw_text)
+    if not parsed["rows"]:
+        raise HTTPException(status_code=400, detail="อ่านข้อมูลไม่สำเร็จ: ไม่พบรายการรายวัน")
+
+    now = datetime.utcnow().isoformat()
+    with connect_db() as conn:
+        cur = conn.execute(
+            "INSERT INTO reports (raw_text, created_at) VALUES (?, ?)",
+            (raw_text, now),
+        )
+        report_id = int(cur.lastrowid)
+
+        inserted = 0
+        duplicated = 0
+        for row in parsed["rows"]:
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO daily_records
+                    (report_id, date_text, iso_date, vehicle_type, vehicle_title, icon, company, item, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        report_id,
+                        row["date"],
+                        row["isoDate"],
+                        row["vehicleType"],
+                        row["vehicleTitle"],
+                        row["icon"],
+                        row["company"],
+                        row["item"],
+                        now,
+                    ),
+                )
+                inserted += 1
+            except sqlite3.IntegrityError:
+                duplicated += 1
+
+        conn.commit()
+
+    return {
+        "report_id": report_id,
+        "parsed_rows": len(parsed["rows"]),
+        "inserted": inserted,
+        "duplicated": duplicated,
+    }
+
+
+def get_dashboard_data(start: str | None = None, end: str | None = None, q: str | None = None) -> dict[str, Any]:
+    where = []
+    params: list[Any] = []
+
+    if start:
+        where.append("iso_date >= ?")
+        params.append(start)
+    if end:
+        where.append("iso_date <= ?")
+        params.append(end)
+    if q:
+        where.append("(item LIKE ? OR company LIKE ? OR vehicle_title LIKE ? OR date_text LIKE ?)")
+        like = f"%{q}%"
+        params.extend([like, like, like, like])
+
+    where_sql = "WHERE " + " AND ".join(where) if where else ""
+
+    with connect_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT date_text, iso_date, vehicle_type, vehicle_title, icon, company, item
+            FROM daily_records
+            {where_sql}
+            ORDER BY iso_date ASC, id ASC
+            """,
+            params,
+        ).fetchall()
+
+        amount_rows = conn.execute(
+            "SELECT raw_text FROM reports ORDER BY id ASC"
+        ).fetchall()
+
+    all_raw = "\n\n".join(row["raw_text"] for row in amount_rows)
+    parsed_amounts = parse_report(all_raw) if all_raw else {"period": "📊 รายสัปดาห์", "amounts": {"car": 0, "motorcycle": 0, "total": 0}}
+
+    days: dict[str, Any] = {}
+    for row in rows:
+        day_key = row["iso_date"]
+        if day_key not in days:
+            days[day_key] = {
+                "date": row["date_text"],
+                "isoDate": row["iso_date"],
+                "motorcycle": 0,
+                "pickup": 0,
+                "sedan": 0,
+                "groups": {},
+            }
+
+        day = days[day_key]
+        vehicle_type = row["vehicle_type"]
+        company = row["company"] or ""
+        group_key = f"{vehicle_type}|{company}"
+
+        if group_key not in day["groups"]:
+            day["groups"][group_key] = {
+                "key": vehicle_type,
+                "icon": row["icon"],
+                "title": row["vehicle_title"],
+                "company": company,
+                "items": [],
+            }
+
+        day["groups"][group_key]["items"].append(row["item"])
+        day[vehicle_type] += 1
+
+    daily_data = []
+    for day in days.values():
+        groups = []
+        for group in day["groups"].values():
+            group["count"] = len(group["items"])
+            groups.append(group)
+        day["groups"] = groups
+        daily_data.append(day)
+
+    total_motorcycle = sum(day["motorcycle"] for day in daily_data)
+    total_pickup = sum(day["pickup"] for day in daily_data)
+    total_sedan = sum(day["sedan"] for day in daily_data)
+
+    return {
+        "period": parsed_amounts["period"],
+        "amounts": parsed_amounts["amounts"],
         "dailyData": daily_data,
+        "totals": {
+            "motorcycle": total_motorcycle,
+            "pickup": total_pickup,
+            "sedan": total_sedan,
+            "all": total_motorcycle + total_pickup + total_sedan,
+        },
+        "recordCount": len(rows),
     }
 
 
@@ -221,24 +335,24 @@ ADMIN_HTML = """
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--cyan:#14b8a6;--line:#e5e7eb;--shadow:0 16px 40px rgba(15,23,42,.08)}
-*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.wrap{width:min(980px,94vw);margin:auto;padding:32px 0}.card{background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border-radius:28px;padding:26px;box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9)}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:28px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:34px}.hero p{margin:0;opacity:.9}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid var(--line)}textarea{width:100%;height:440px;border:1px solid var(--line);border-radius:18px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}input{padding:12px 14px;border:1px solid var(--line);border-radius:14px;font-family:Prompt,sans-serif}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 12px 22px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn2{background:#eff6ff;color:#1d4ed8;box-shadow:none}.status{margin-top:12px;color:var(--muted)}
+*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.wrap{width:min(980px,94vw);margin:auto;padding:32px 0}.card{background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border-radius:28px;padding:26px;box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9)}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:28px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:34px}.hero p{margin:0;opacity:.9}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid var(--line)}textarea{width:100%;height:440px;border:1px solid var(--line);border-radius:18px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}input{padding:12px 14px;border:1px solid var(--line);border-radius:14px;font-family:Prompt,sans-serif}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 12px 22px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn2{background:#eff6ff;color:#1d4ed8;box-shadow:none}.status{margin-top:12px;color:var(--muted);white-space:pre-wrap}.hint{padding:12px 14px;background:#eff6ff;color:#1d4ed8;border-radius:14px;margin:12px 0;font-size:14px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="nav"><a href="/admin">Admin</a><a href="/dashboard" target="_blank">Dashboard Only</a></div>
-  <div class="hero"><h1>Vehicle Dashboard Admin</h1><p>อัปเดตข้อมูลกลาง แล้วหน้า Dashboard Only จะเปลี่ยนให้ผู้ชมทุกคนทันที</p></div>
+  <div class="hero"><h1>Vehicle Dashboard Admin</h1><p>นำเข้าข้อมูลเพิ่มได้เรื่อย ๆ ระบบจะแยกรายการลงฐานข้อมูล และกันข้อมูลซ้ำให้อัตโนมัติ</p></div>
   <div class="card">
     <h2>นำเข้าข้อมูลรายงาน</h2>
-    <p>วางข้อความรายงาน หรืออัปโหลดไฟล์ .txt จากนั้นกดบันทึก</p>
+    <div class="hint">Production Mode: ระบบจะ append ข้อมูลใหม่เข้า daily_records และ deduplicate ด้วย วันที่ + ประเภทรถ + บริษัท + รายการ</div>
     <form id="form">
       <div class="row" style="margin-bottom:12px">
         <input type="password" id="token" placeholder="Admin Token" required>
         <input type="file" id="file" accept=".txt,text/plain">
       </div>
-      <textarea id="raw_text" placeholder="วางข้อมูลรายสัปดาห์ตรงนี้...">{{raw_text}}</textarea>
+      <textarea id="raw_text" placeholder="วางข้อมูลรายสัปดาห์หลายชุดต่อกันได้ตรงนี้..."></textarea>
       <div class="row">
-        <button class="btn" type="submit">บันทึกและสร้าง Dashboard</button>
+        <button class="btn" type="submit">บันทึกเพิ่มเข้าฐานข้อมูล</button>
         <a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard Only</a>
       </div>
     </form>
@@ -261,10 +375,15 @@ form.addEventListener('submit', async event => {
   fd.append('raw_text', rawText.value);
   fd.append('token', document.getElementById('token').value);
   statusBox.textContent = 'กำลังบันทึกข้อมูล...';
-  const res = await fetch('/api/report', {method:'POST', body:fd});
+  const res = await fetch('/api/import', {method:'POST', body:fd});
   const data = await res.json();
   if(!res.ok){statusBox.textContent = data.detail || 'บันทึกไม่สำเร็จ';return;}
-  statusBox.textContent = 'บันทึกสำเร็จ Report ID: ' + data.id + ' — Dashboard อัปเดตแล้ว';
+  statusBox.textContent =
+    'บันทึกสำเร็จ\\n' +
+    'Report ID: ' + data.report_id + '\\n' +
+    'อ่านพบทั้งหมด: ' + data.parsed_rows + ' รายการ\\n' +
+    'เพิ่มใหม่: ' + data.inserted + ' รายการ\\n' +
+    'ข้อมูลซ้ำที่ข้าม: ' + data.duplicated + ' รายการ';
 });
 </script>
 </body>
@@ -285,14 +404,14 @@ DASHBOARD_HTML = """
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--green:#16a34a;--orange:#f97316;--cyan:#14b8a6;--line:#e5e7eb;--shadow:0 18px 42px rgba(15,23,42,.08);--radius:24px}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),linear-gradient(180deg,#f8fafc,var(--bg));color:var(--text)}.page{width:min(1280px,94vw);margin:0 auto;padding:32px 0 48px}.hero{display:grid;grid-template-columns:1.5fr 1fr;gap:20px;margin-bottom:22px}.hero-card{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:30px;padding:30px;box-shadow:var(--shadow);position:relative;overflow:hidden}.hero-card:after{content:"";position:absolute;width:260px;height:260px;border-radius:999px;right:-80px;top:-80px;background:rgba(255,255,255,.12)}.hero-card>*{position:relative;z-index:1}.hero-card h1{margin:0 0 10px;font-size:clamp(28px,4vw,46px)}.hero-card p{opacity:.92}.period-pill{display:inline-flex;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.24);padding:8px 14px;border-radius:999px;margin-bottom:18px;font-weight:600}.total-card,.panel,.kpi,.day-card,.toolbar,.insight-card{background:rgba(255,255,255,.94);box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9);backdrop-filter:blur(10px)}.total-card{border-radius:30px;padding:26px}.label{color:var(--muted)}.amount{font-size:46px;font-weight:800;color:var(--blue);margin:8px 0}.summary-table{width:100%;border-collapse:collapse}.summary-table th,.summary-table td{padding:14px 12px;border-bottom:1px solid var(--line);text-align:left}.summary-table td:last-child,.summary-table th:last-child{text-align:right;font-weight:700}.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin:0 0 16px;padding:16px;border-radius:var(--radius)}.filter-group{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.date-input,.date-select,.search-input{border:1px solid var(--line);border-radius:14px;padding:10px 14px;font-family:Prompt,sans-serif;background:#fff;outline:none}.search-input{min-width:250px}.btn{border:0;border-radius:14px;padding:10px 16px;font-family:Prompt,sans-serif;font-weight:700;color:#fff;background:linear-gradient(135deg,#2563eb,#14b8a6);cursor:pointer;box-shadow:0 12px 24px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px);box-shadow:0 16px 30px rgba(37,99,235,.22)}.btn2{color:#1d4ed8;background:#eff6ff;box-shadow:none}.btnDark{background:#111827}.status-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#ecfeff;color:#155e75;font-size:13px;font-weight:700}.dot{width:8px;height:8px;border-radius:99px;background:#22c55e;box-shadow:0 0 0 5px rgba(34,197,94,.12)}.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}.kpi{border-radius:var(--radius);padding:20px;transition:.2s}.kpi:hover{transform:translateY(-2px)}.kpi .icon{font-size:28px;margin-bottom:8px}.kpi .value{font-size:30px;font-weight:800}.kpi .title{color:var(--muted);font-size:14px}.section-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px}.panel{border-radius:var(--radius);padding:22px}.chart-wrap{height:310px}.daily-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}.day-card{border-radius:var(--radius);overflow:hidden;transition:.2s}.day-card:hover{transform:translateY(-2px)}.day-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 20px;border:0;background:#fff;cursor:pointer;font-family:Prompt,sans-serif;text-align:left}.day-title{font-size:18px;font-weight:800}.badge{background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:800;white-space:nowrap}.chev{font-size:18px;color:#667085}.day-body{display:none;padding:0 20px 20px;border-top:1px solid var(--line)}.day-card.open .day-body{display:block}.vehicle-group{margin-top:14px}.vehicle-title{font-weight:800;margin-bottom:8px}.company{display:inline-flex;margin:6px 0 4px;padding:4px 10px;border-radius:999px;background:#f3f4f6;font-size:12px;font-weight:800}ul{list-style:none;padding:0;margin:0;display:grid;gap:7px}li{background:#f9fafb;border:1px solid #eef2f7;border-radius:14px;padding:9px 11px;font-size:13px}.pagination{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;margin:20px 0}.page-info{color:var(--muted);font-weight:700}.skeleton{height:130px;border-radius:22px;background:linear-gradient(90deg,#f1f5f9,#fff,#f1f5f9);background-size:200% 100%;animation:shimmer 1.2s infinite}@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}@media(max-width:980px){.hero,.section-grid,.daily-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.page{width:min(100% - 22px,1280px);padding-top:18px}.kpi-grid{grid-template-columns:1fr}.filter-group,.date-input,.date-select,.search-input,.btn{width:100%}.amount{font-size:38px}}
+*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),linear-gradient(180deg,#f8fafc,var(--bg));color:var(--text)}.page{width:min(1280px,94vw);margin:0 auto;padding:32px 0 48px}.hero{display:grid;grid-template-columns:1.5fr 1fr;gap:20px;margin-bottom:22px}.hero-card{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:30px;padding:30px;box-shadow:var(--shadow)}.hero-card h1{margin:0 0 10px;font-size:clamp(28px,4vw,46px)}.period-pill{display:inline-flex;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.24);padding:8px 14px;border-radius:999px;margin-bottom:18px;font-weight:600}.total-card,.panel,.kpi,.day-card,.toolbar{background:rgba(255,255,255,.94);box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9);backdrop-filter:blur(10px)}.total-card{border-radius:30px;padding:26px}.label{color:var(--muted)}.amount{font-size:46px;font-weight:800;color:var(--blue);margin:8px 0}.summary-table{width:100%;border-collapse:collapse}.summary-table th,.summary-table td{padding:14px 12px;border-bottom:1px solid var(--line);text-align:left}.summary-table td:last-child,.summary-table th:last-child{text-align:right;font-weight:700}.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin:0 0 16px;padding:16px;border-radius:var(--radius)}.filter-group{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.date-input,.date-select,.search-input{border:1px solid var(--line);border-radius:14px;padding:10px 14px;font-family:Prompt,sans-serif;background:#fff;outline:none}.search-input{min-width:250px}.btn{border:0;border-radius:14px;padding:10px 16px;font-family:Prompt,sans-serif;font-weight:700;color:#fff;background:linear-gradient(135deg,#2563eb,#14b8a6);cursor:pointer}.btn2{color:#1d4ed8;background:#eff6ff}.btnDark{background:#111827}.status-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#ecfeff;color:#155e75;font-size:13px;font-weight:700}.dot{width:8px;height:8px;border-radius:99px;background:#22c55e;box-shadow:0 0 0 5px rgba(34,197,94,.12)}.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}.kpi{border-radius:var(--radius);padding:20px}.kpi .icon{font-size:28px;margin-bottom:8px}.kpi .value{font-size:30px;font-weight:800}.kpi .title{color:var(--muted);font-size:14px}.section-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px}.panel{border-radius:var(--radius);padding:22px}.chart-wrap{height:310px}.daily-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}.day-card{border-radius:var(--radius);overflow:hidden}.day-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 20px;border:0;background:#fff;cursor:pointer;font-family:Prompt,sans-serif;text-align:left}.day-title{font-size:18px;font-weight:800}.badge{background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:800;white-space:nowrap}.chev{font-size:18px;color:#667085}.day-body{display:none;padding:0 20px 20px;border-top:1px solid var(--line)}.day-card.open .day-body{display:block}.vehicle-group{margin-top:14px}.vehicle-title{font-weight:800;margin-bottom:8px}.company{display:inline-flex;margin:6px 0 4px;padding:4px 10px;border-radius:999px;background:#f3f4f6;font-size:12px;font-weight:800}ul{list-style:none;padding:0;margin:0;display:grid;gap:7px}li{background:#f9fafb;border:1px solid #eef2f7;border-radius:14px;padding:9px 11px;font-size:13px}.pagination{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;margin:20px 0}.page-info{color:var(--muted);font-weight:700}@media(max-width:980px){.hero,.section-grid,.daily-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.kpi-grid{grid-template-columns:1fr}.filter-group,.date-input,.date-select,.search-input,.btn{width:100%}.amount{font-size:38px}}
 </style>
 </head>
 <body>
 <main class="page">
 <section class="hero">
-  <div class="hero-card"><div class="period-pill" id="period">📊 รายสัปดาห์</div><h1>Vehicle Weekly Dashboard</h1><p>Dashboard Only สำหรับแชร์ให้ผู้เกี่ยวข้องดูข้อมูลล่าสุด</p><div style="margin-top:18px"><span class="status-pill"><span class="dot"></span><span id="refreshStatus">Auto refresh ทุก 30 วิ</span></span></div></div>
-  <div class="total-card"><div class="label">ยอดรวมทั้งหมด</div><div class="amount" id="totalAmount">0</div><table class="summary-table"><tr><th>หมวด</th><th>ยอด</th></tr><tr><td>🚛 🚗 รถยนต์</td><td id="carAmount">0 บาท</td></tr><tr><td>🏍 รถจักรยานยนต์</td><td id="motorAmount">0 บาท</td></tr></table></div>
+  <div class="hero-card"><div class="period-pill" id="period">📊 รายสัปดาห์</div><h1>Vehicle Weekly Dashboard</h1><p>Production Dashboard ดึงข้อมูลจาก daily_records และรองรับข้อมูลสะสมระยะยาว</p><div style="margin-top:18px"><span class="status-pill"><span class="dot"></span><span id="refreshStatus">Auto refresh ทุก 30 วิ</span></span></div></div>
+  <div class="total-card"><div class="label">ยอดรวมจากรายงานทั้งหมด</div><div class="amount" id="totalAmount">0</div><table class="summary-table"><tr><th>หมวด</th><th>ยอด</th></tr><tr><td>🚛 🚗 รถยนต์</td><td id="carAmount">0 บาท</td></tr><tr><td>🏍 รถจักรยานยนต์</td><td id="motorAmount">0 บาท</td></tr></table></div>
 </section>
 
 <section class="toolbar">
@@ -316,42 +435,24 @@ DASHBOARD_HTML = """
   </div>
 </section>
 
-<section class="daily-grid" id="cards"><div class="skeleton"></div><div class="skeleton"></div></section>
+<section class="daily-grid" id="cards"></section>
 <div class="pagination"><button class="btn btn2" id="prevPageBtn">ก่อนหน้า</button><span class="page-info" id="pageInfo">Page 1</span><button class="btn btn2" id="nextPageBtn">ถัดไป</button></div>
 <p class="status-pill" id="status">Loading...</p>
 </main>
 
 <script>
-let report=null, allDays=[], filteredDays=[], viewDays=[], dailyChart=null, typeChart=null, lastReportId=null;
-let currentPage=1, pageSize=6, autoTimer=null;
+let report=null, allDays=[], filteredDays=[], viewDays=[], dailyChart=null, typeChart=null;
+let currentPage=1, pageSize=8, autoTimer=null;
 const box=id=>document.getElementById(id);
 const money=n=>Math.round(n||0).toLocaleString('th-TH');
 function inRange(d,s,e){if(s&&d.isoDate<s)return false;if(e&&d.isoDate>e)return false;return true;}
 function destroy(){if(dailyChart)dailyChart.destroy();if(typeChart)typeChart.destroy();}
 function setupRange(){const dates=allDays.map(d=>d.isoDate).filter(Boolean).sort();box('startDate').value=dates[0]||'';box('endDate').value=dates[dates.length-1]||'';}
-function flattenRows(days){
- const rows=[];
- days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item}))));
- return rows;
-}
-function applySearch(){
- const q=box('searchBox').value.trim().toLowerCase();
- if(!q){viewDays=[...filteredDays];return;}
- viewDays=filteredDays.map(day=>{
-   const groups=day.groups.map(g=>{
-     const items=g.items.filter(i=>(day.date+' '+g.title+' '+(g.company||'')+' '+i).toLowerCase().includes(q));
-     return {...g,items,count:items.length};
-   }).filter(g=>g.items.length);
-   const motorcycle=groups.filter(g=>g.key==='motorcycle').reduce((s,g)=>s+g.items.length,0);
-   const pickup=groups.filter(g=>g.key==='pickup').reduce((s,g)=>s+g.items.length,0);
-   const sedan=groups.filter(g=>g.key==='sedan').reduce((s,g)=>s+g.items.length,0);
-   return {...day,groups,motorcycle,pickup,sedan};
- }).filter(d=>d.groups.length);
-}
+function flattenRows(days){const rows=[];days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item}))));return rows;}
 function renderCharts(motor,pickup,sedan){
  destroy();
- dailyChart=new Chart(box('dailyChart'),{type:'bar',data:{labels:filteredDays.map(d=>d.date.slice(0,5)),datasets:[{label:'🏍 รถจักรยานยนต์',data:filteredDays.map(d=>d.motorcycle),backgroundColor:'#2563eb',borderRadius:10},{label:'🚛 รถกระบะ',data:filteredDays.map(d=>d.pickup),backgroundColor:'#f97316',borderRadius:10},{label:'🚗 รถยนต์เก๋ง',data:filteredDays.map(d=>d.sedan),backgroundColor:'#16a34a',borderRadius:10}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:500},scales:{y:{beginAtZero:true}}}});
- typeChart=new Chart(box('typeChart'),{type:'doughnut',data:{labels:['รถจักรยานยนต์','รถกระบะ','รถยนต์เก๋ง'],datasets:[{data:[motor,pickup,sedan],backgroundColor:['#2563eb','#f97316','#16a34a'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'66%',animation:{duration:500}}});
+ dailyChart=new Chart(box('dailyChart'),{type:'bar',data:{labels:filteredDays.map(d=>d.date.slice(0,5)),datasets:[{label:'🏍 รถจักรยานยนต์',data:filteredDays.map(d=>d.motorcycle),backgroundColor:'#2563eb',borderRadius:10},{label:'🚛 รถกระบะ',data:filteredDays.map(d=>d.pickup),backgroundColor:'#f97316',borderRadius:10},{label:'🚗 รถยนต์เก๋ง',data:filteredDays.map(d=>d.sedan),backgroundColor:'#16a34a',borderRadius:10}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});
+ typeChart=new Chart(box('typeChart'),{type:'doughnut',data:{labels:['รถจักรยานยนต์','รถกระบะ','รถยนต์เก๋ง'],datasets:[{data:[motor,pickup,sedan],backgroundColor:['#2563eb','#f97316','#16a34a'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'66%'}});
 }
 function render(selected='all'){
  const motor=filteredDays.reduce((s,d)=>s+d.motorcycle,0), pickup=filteredDays.reduce((s,d)=>s+d.pickup,0), sedan=filteredDays.reduce((s,d)=>s+d.sedan,0), total=motor+pickup+sedan;
@@ -359,19 +460,20 @@ function render(selected='all'){
  box('dateFilter').innerHTML='<option value="all">ดูทั้งหมด</option>'+filteredDays.map(d=>`<option value="${d.date}">${d.date}</option>`).join('');
  renderCharts(motor,pickup,sedan);currentPage=1;renderCards(selected);box('status').textContent=`แสดงข้อมูล ${filteredDays.length}/${allDays.length} วัน / ${total} คัน`;
 }
-function renderCards(selected='all'){
+function getCardList(selected='all'){
  const base=selected==='all'?filteredDays:filteredDays.filter(d=>d.date===selected);
  const q=box('searchBox').value.trim().toLowerCase();
- let list=base;
- if(q){
-   list=base.map(day=>{
-     const groups=day.groups.map(g=>{
-       const items=g.items.filter(i=>(day.date+' '+g.title+' '+(g.company||'')+' '+i).toLowerCase().includes(q));
-       return {...g,items,count:items.length};
-     }).filter(g=>g.items.length);
-     return {...day,groups,motorcycle:groups.filter(g=>g.key==='motorcycle').reduce((s,g)=>s+g.items.length,0),pickup:groups.filter(g=>g.key==='pickup').reduce((s,g)=>s+g.items.length,0),sedan:groups.filter(g=>g.key==='sedan').reduce((s,g)=>s+g.items.length,0)};
-   }).filter(d=>d.groups.length);
- }
+ if(!q) return base;
+ return base.map(day=>{
+   const groups=day.groups.map(g=>{
+     const items=g.items.filter(i=>(day.date+' '+g.title+' '+(g.company||'')+' '+i).toLowerCase().includes(q));
+     return {...g,items,count:items.length};
+   }).filter(g=>g.items.length);
+   return {...day,groups,motorcycle:groups.filter(g=>g.key==='motorcycle').reduce((s,g)=>s+g.items.length,0),pickup:groups.filter(g=>g.key==='pickup').reduce((s,g)=>s+g.items.length,0),sedan:groups.filter(g=>g.key==='sedan').reduce((s,g)=>s+g.items.length,0)};
+ }).filter(d=>d.groups.length);
+}
+function renderCards(selected='all'){
+ const list=getCardList(selected);
  viewDays=list;
  const totalPages=Math.max(1,Math.ceil(list.length/pageSize));
  if(currentPage>totalPages) currentPage=totalPages;
@@ -387,38 +489,27 @@ function renderCards(selected='all'){
    return `<article class="day-card${open}"><button class="day-head" onclick="this.parentElement.classList.toggle('open')"><span class="day-title">📊 วันที่ ${day.date}</span><span class="badge">รวม ${total} คัน</span><span class="chev">⌄</span></button><div class="day-body">${groups}</div></article>`;
  }).join('');
 }
-function exportExcel(){
- const rows=flattenRows(viewDays.length?viewDays:filteredDays);
- const ws=XLSX.utils.json_to_sheet(rows.map(r=>({วันที่:r.date,ประเภทรถ:r.type,บริษัท:r.company,รายการ:r.item})));
- const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Dashboard');
- XLSX.writeFile(wb,'vehicle-dashboard.xlsx');
-}
-function exportPDF(){
- const rows=flattenRows(viewDays.length?viewDays:filteredDays).map(r=>[r.date,r.type,r.company,r.item]);
- const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});
- doc.setFontSize(16);doc.text('Vehicle Weekly Dashboard',14,16);
- doc.setFontSize(10);doc.text(box('status').textContent,14,24);
- doc.autoTable({head:[['Date','Type','Company','Item']],body:rows,startY:30,styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[37,99,235]}});
- doc.save('vehicle-dashboard.pdf');
-}
+function exportExcel(){const rows=flattenRows(viewDays.length?viewDays:filteredDays);const ws=XLSX.utils.json_to_sheet(rows.map(r=>({วันที่:r.date,ประเภทรถ:r.type,บริษัท:r.company,รายการ:r.item})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Dashboard');XLSX.writeFile(wb,'vehicle-dashboard.xlsx');}
+function exportPDF(){const rows=flattenRows(viewDays.length?viewDays:filteredDays).map(r=>[r.date,r.type,r.company,r.item]);const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});doc.setFontSize(16);doc.text('Vehicle Weekly Dashboard',14,16);doc.setFontSize(10);doc.text(box('status').textContent,14,24);doc.autoTable({head:[['Date','Type','Company','Item']],body:rows,startY:30,styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[37,99,235]}});doc.save('vehicle-dashboard.pdf');}
 async function load(silent=false){
  if(!silent) box('refreshStatus').textContent='กำลังโหลดข้อมูล...';
- const res=await fetch('/api/report/latest?ts='+Date.now());
- if(!res.ok){box('status').textContent='ยังไม่มีข้อมูล';box('refreshStatus').textContent='ยังไม่มีข้อมูล';return;}
- const data=await res.json();
- if(silent && lastReportId===data.id){box('refreshStatus').textContent='ข้อมูลล่าสุดแล้ว • '+new Date().toLocaleTimeString('th-TH');return;}
- report=data;lastReportId=data.id;allDays=report.dailyData;filteredDays=[...allDays];setupRange();render();box('refreshStatus').textContent='Auto refresh ทุก 30 วิ • '+new Date().toLocaleTimeString('th-TH');
+ const params=new URLSearchParams();
+ const s=box('startDate').value,e=box('endDate').value,q=box('searchBox').value.trim();
+ if(s) params.set('start',s); if(e) params.set('end',e); if(q) params.set('q',q);
+ const url='/api/dashboard'+(params.toString()?('?'+params.toString()):'');
+ const res=await fetch(url+'&ts='+Date.now()).catch(()=>null);
+ if(!res||!res.ok){box('status').textContent='ยังไม่มีข้อมูล';box('refreshStatus').textContent='ยังไม่มีข้อมูล';return;}
+ report=await res.json();allDays=report.dailyData;filteredDays=[...allDays];if(!s&&!e) setupRange();render();box('refreshStatus').textContent='Auto refresh ทุก 30 วิ • '+new Date().toLocaleTimeString('th-TH');
 }
-box('applyBtn').onclick=()=>{filteredDays=allDays.filter(d=>inRange(d,box('startDate').value,box('endDate').value));currentPage=1;render('all')};
-box('resetBtn').onclick=()=>{filteredDays=[...allDays];setupRange();currentPage=1;box('searchBox').value='';render('all')};
+box('applyBtn').onclick=()=>load();
+box('resetBtn').onclick=()=>{box('startDate').value='';box('endDate').value='';box('searchBox').value='';load()};
 box('showDateBtn').onclick=()=>{currentPage=1;renderCards(box('dateFilter').value)};
 box('showAllBtn').onclick=()=>{box('dateFilter').value='all';currentPage=1;renderCards('all')};
 box('dateFilter').onchange=()=>{currentPage=1;renderCards(box('dateFilter').value)};
-box('searchBox').oninput=()=>{currentPage=1;renderCards(box('dateFilter').value)};
+box('searchBox').oninput=()=>{currentPage=1;clearTimeout(window.searchTimer);window.searchTimer=setTimeout(()=>load(),450)};
 box('prevPageBtn').onclick=()=>{if(currentPage>1){currentPage--;renderCards(box('dateFilter').value)}};
 box('nextPageBtn').onclick=()=>{currentPage++;renderCards(box('dateFilter').value)};
-box('exportExcelBtn').onclick=exportExcel;
-box('exportPdfBtn').onclick=exportPDF;
+box('exportExcelBtn').onclick=exportExcel;box('exportPdfBtn').onclick=exportPDF;
 load();autoTimer=setInterval(()=>load(true),30000);
 </script>
 </body>
@@ -433,10 +524,7 @@ def root() -> RedirectResponse:
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin_page() -> str:
-    latest = get_latest_report()
-    raw_text = latest["raw_text"] if latest else ""
-    safe_text = raw_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    return ADMIN_HTML.replace("{{raw_text}}", safe_text)
+    return ADMIN_HTML
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -444,26 +532,28 @@ def dashboard_page() -> str:
     return DASHBOARD_HTML
 
 
-@app.post("/api/report")
-def api_save_report(token: str = Form(...), raw_text: str = Form("")) -> JSONResponse:
+@app.post("/api/import")
+def api_import(token: str = Form(...), raw_text: str = Form("")) -> JSONResponse:
     if token != ADMIN_TOKEN:
         raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
     text = raw_text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="ไม่พบข้อมูลรายงาน")
-    parsed = parse_report(text)
-    if not parsed["dailyData"]:
-        raise HTTPException(status_code=400, detail="อ่านข้อมูลไม่สำเร็จ: ไม่พบรายการรายวัน")
-    report_id = save_report(text)
-    return JSONResponse({"ok": True, "id": report_id, "parsed": parsed})
+    result = save_import(text)
+    return JSONResponse({"ok": True, **result})
+
+
+@app.get("/api/dashboard")
+def api_dashboard(
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
+    q: str | None = Query(default=None),
+) -> JSONResponse:
+    data = get_dashboard_data(start=start, end=end, q=q)
+    return JSONResponse(data)
 
 
 @app.get("/api/report/latest")
 def api_latest_report() -> JSONResponse:
-    latest = get_latest_report()
-    if not latest:
-        raise HTTPException(status_code=404, detail="ยังไม่มีข้อมูล Dashboard")
-    parsed = parse_report(latest["raw_text"])
-    parsed["id"] = latest["id"]
-    parsed["created_at"] = latest["created_at"]
-    return JSONResponse(parsed)
+    # Backward compatible endpoint
+    return api_dashboard()
