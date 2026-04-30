@@ -1,19 +1,29 @@
-# Vehicle Dashboard v4.2 Stable PDF Export
+# Vehicle Dashboard v4.3 Sparkline Hover Animation
 
-เวอร์ชันนี้แก้ปัญหา JavaScript หลุดไปแสดงบนหน้า Dashboard ตอนกด Export PDF
+เพิ่มตามคำขอ:
+1. Sparkline ใน KPI ทุกใบ
+2. Hover Highlight บนกราฟหลัก
+   - Hover วันเดียวแล้ววันอื่น dim ลง
+   - Tooltip แสดงยอดรวมของวันนั้น
+3. Animation / Micro Interaction
+   - KPI count animation
+   - KPI hover glow
+   - Card hover lift + scale
+   - Expand animation
+   - List item hover
 
-## สิ่งที่แก้
-- Export PDF ไม่ใช้ jsPDF
-- ไม่ฝัง `<script>` ไว้ใน HTML template string อีกต่อไป
-- เปิดหน้าต่างใหม่แล้วสั่ง `window.print()` จากหน้าหลักแทน
-- รองรับภาษาไทยผ่าน Browser Print / Save as PDF
-- ลดความเสี่ยง HTML/JS string แตก
+ยังคงใช้:
+- Replace All import mode
+- Stable PDF Export ผ่าน Browser Print
+- Export Excel
+- Auto refresh 30 วินาที
 
-## วิธีใช้งาน
-1. Deploy ไฟล์ชุดนี้แทนของเดิม
-2. เปิด `/dashboard`
-3. กด `Export PDF`
-4. เลือก `Save as PDF`
+## Run
+
+```bash
+pip install -r requirements.txt
+uvicorn app:app --reload
+```
 
 ## URLs
 - `/admin`
