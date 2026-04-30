@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 DB_PATH = Path("vehicle_dashboard.db")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "change-this-token")
 
-app = FastAPI(title="Vehicle Dashboard v3.2 Replace Dates")
+app = FastAPI(title="Vehicle Dashboard v3.3 Replace All")
 
 
 def connect_db() -> sqlite3.Connection:
@@ -191,16 +191,15 @@ def parse_report(raw_text: str) -> dict[str, Any]:
     }
 
 
-def save_import_replace_dates(raw_text: str) -> dict[str, int]:
+def save_import_replace_all(raw_text: str) -> dict[str, int]:
     """
-    Production update mode:
+    Replace All Mode:
     1. Parse imported rows
-    2. Find all dates included in the import
-    3. Delete old daily_records for those dates
-    4. Insert the new rows
-    5. Replace weekly_summaries for imported periods
+    2. Clear all existing dashboard data from daily_records and weekly_summaries
+    3. Insert only the newest imported data
 
-    Result: importing the same date again updates/replaces it, not adds duplicate counts.
+    This is best when the uploaded text file represents the latest source of truth.
+    Result: dashboard always equals the latest uploaded file, never accumulates old data.
     """
     parsed = parse_report(raw_text)
     rows = parsed["rows"]
@@ -211,7 +210,6 @@ def save_import_replace_dates(raw_text: str) -> dict[str, int]:
 
     now = datetime.utcnow().isoformat()
     imported_dates = sorted({row["isoDate"] for row in rows if row["isoDate"]})
-    imported_periods = sorted(weekly_summaries.keys())
 
     with connect_db() as conn:
         cur = conn.execute(
@@ -220,13 +218,8 @@ def save_import_replace_dates(raw_text: str) -> dict[str, int]:
         )
         report_id = int(cur.lastrowid)
 
-        deleted_records = 0
-        if imported_dates:
-            placeholders = ",".join(["?"] * len(imported_dates))
-            deleted_records = conn.execute(
-                f"DELETE FROM daily_records WHERE iso_date IN ({placeholders})",
-                imported_dates,
-            ).rowcount
+        deleted_records = conn.execute("DELETE FROM daily_records").rowcount
+        deleted_summaries = conn.execute("DELETE FROM weekly_summaries").rowcount
 
         inserted = 0
         for row in rows:
@@ -252,7 +245,6 @@ def save_import_replace_dates(raw_text: str) -> dict[str, int]:
 
         replaced_summaries = 0
         for period, summary in weekly_summaries.items():
-            conn.execute("DELETE FROM weekly_summaries WHERE period_key = ?", (period,))
             conn.execute(
                 """
                 INSERT INTO weekly_summaries
@@ -275,6 +267,7 @@ def save_import_replace_dates(raw_text: str) -> dict[str, int]:
         "report_id": report_id,
         "imported_dates": len(imported_dates),
         "deleted_records": int(deleted_records or 0),
+        "deleted_summaries": int(deleted_summaries or 0),
         "inserted": inserted,
         "replaced_summaries": replaced_summaries,
         "parsed_rows": len(rows),
@@ -424,10 +417,10 @@ ADMIN_HTML = """
 <body>
 <div class="wrap">
   <div class="nav"><a href="/admin">Admin</a><a href="/dashboard" target="_blank">Dashboard Only</a></div>
-  <div class="hero"><h1>Vehicle Dashboard Admin</h1><p>นำเข้าข้อมูลแบบ Replace by Date: ถ้ามีวันที่เดิม ระบบจะลบข้อมูลเดิมของวันนั้นแล้วใส่ข้อมูลใหม่แทน</p></div>
+  <div class="hero"><h1>Vehicle Dashboard Admin</h1><p>นำเข้าข้อมูลแบบ Replace All: ระบบจะล้างข้อมูลเดิมทั้งหมด แล้วใช้เฉพาะข้อมูลชุดล่าสุดแทน</p></div>
   <div class="card">
     <h2>นำเข้าข้อมูลรายงาน</h2>
-    <div class="hint danger">โหมดนี้ไม่บวกซ้ำ: วันที่ที่อยู่ในไฟล์นำเข้าจะถูกเคลียร์ข้อมูลเดิมก่อน แล้วระบบจะบันทึกข้อมูลล่าสุดแทน</div>
+    <div class="hint danger">โหมดนี้ไม่บวกสะสม: ทุกครั้งที่นำเข้า ระบบจะเคลียร์ข้อมูลเดิมทั้งหมด แล้วบันทึกเฉพาะข้อมูลล่าสุดในไฟล์นี้</div>
     <form id="form">
       <div class="row" style="margin-bottom:12px">
         <input type="password" id="token" placeholder="Admin Token" required>
@@ -435,7 +428,7 @@ ADMIN_HTML = """
       </div>
       <textarea id="raw_text" placeholder="วางข้อมูลรายสัปดาห์หลายชุดต่อกันได้ตรงนี้..."></textarea>
       <div class="row">
-        <button class="btn" type="submit">เคลียร์วันที่เดิมและอัปเดตข้อมูลใหม่</button>
+        <button class="btn" type="submit">เคลียร์ข้อมูลเดิมทั้งหมดและบันทึกชุดใหม่</button>
         <a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard Only</a>
       </div>
     </form>
@@ -457,7 +450,7 @@ form.addEventListener('submit', async event => {
   const fd = new FormData();
   fd.append('raw_text', rawText.value);
   fd.append('token', document.getElementById('token').value);
-  statusBox.textContent = 'กำลังเคลียร์ข้อมูลเดิมของวันที่ในไฟล์ และบันทึกข้อมูลใหม่...';
+  statusBox.textContent = 'กำลังเคลียร์ข้อมูลเดิมทั้งหมด และบันทึกข้อมูลชุดใหม่...';
   const res = await fetch('/api/import', {method:'POST', body:fd});
   const data = await res.json();
   if(!res.ok){statusBox.textContent = data.detail || 'บันทึกไม่สำเร็จ';return;}
@@ -529,7 +522,7 @@ def api_import(token: str = Form(...), raw_text: str = Form("")) -> JSONResponse
     text = raw_text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="ไม่พบข้อมูลรายงาน")
-    result = save_import_replace_dates(text)
+    result = save_import_replace_all(text)
     return JSONResponse({"ok": True, **result})
 
 

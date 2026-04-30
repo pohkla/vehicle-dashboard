@@ -1,11 +1,20 @@
-# Vehicle Dashboard v3.2 Replace Dates
+# Vehicle Dashboard v3.3 Replace All
 
-แก้ logic ตามคำขอ:
-- เวลานำเข้าข้อมูลใหม่ ระบบจะดูวันที่ที่อยู่ในไฟล์
-- ลบข้อมูลเดิมของวันนั้นออกจาก `daily_records`
-- ใส่ข้อมูลใหม่เข้าไปแทน
-- ไม่บวกซ้ำเมื่ออัปโหลดข้อมูลวันเดิม
-- Weekly summary ใช้ `weekly_summaries` และ replace ตาม period เดิม
+เวอร์ชันนี้เปลี่ยน logic ตาม workflow ล่าสุด:
+
+## Import Mode: Replace All
+
+ทุกครั้งที่กด Import:
+1. อ่านข้อมูลจากไฟล์/ข้อความใหม่
+2. ล้างข้อมูลเดิมทั้งหมดใน `daily_records`
+3. ล้างยอดสรุปเดิมทั้งหมดใน `weekly_summaries`
+4. บันทึกเฉพาะข้อมูลชุดล่าสุดเข้าไปใหม่
+
+ผลลัพธ์:
+- Dashboard จะตรงกับไฟล์ล่าสุด 100%
+- อัปโหลดข้อมูลชุดเดิมซ้ำ ไม่บวกเพิ่ม
+- อัปโหลดสัปดาห์ใหม่ จะไม่เอาข้อมูลเก่ามารวมผิด
+- เหมาะกับกรณีที่ไฟล์ล่าสุดคือ Source of Truth
 
 ## Run
 
@@ -14,14 +23,14 @@ pip install -r requirements.txt
 uvicorn app:app --reload
 ```
 
-## URL
+## URLs
 
 - `/admin`
 - `/dashboard`
 
-## Deploy Render
+## Render
 
-ตั้ง Environment Variable:
+ตั้งค่า Environment Variable:
 
 ```text
 ADMIN_TOKEN=your-secret
