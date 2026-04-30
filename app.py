@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 DB_PATH = Path("vehicle_dashboard.db")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "change-this-token")
 
-app = FastAPI(title="Vehicle Dashboard v4.1 PDF Thai Fix")
+app = FastAPI(title="Vehicle Dashboard v4.2 Stable PDF Export")
 
 
 def connect_db() -> sqlite3.Connection:
@@ -477,8 +477,8 @@ DASHBOARD_HTML = """
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+
+
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--green:#16a34a;--orange:#f97316;--cyan:#14b8a6;--dark:#111827;--line:#e5e7eb;--shadow:0 18px 42px rgba(15,23,42,.08);--glow:0 18px 40px rgba(37,99,235,.16);--radius:24px}
 *{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 30%),radial-gradient(circle at top right,#ccfbf1 0,transparent 26%),linear-gradient(180deg,#f8fafc,var(--bg));color:var(--text)}.page{width:min(1280px,94vw);margin:0 auto;padding:32px 0 48px}
@@ -507,59 +507,82 @@ function renderBreakdown(motor,pickup,sedan,total){box('hybridTotal').textConten
 function render(selected='all'){const t=report.totals||{};const motor=t.motorcycle||0,pickup=t.pickup||0,sedan=t.sedan||0,total=t.all||0;box('period').textContent='📊 Dashboard ข้อมูลสะสมทั้งหมด';box('totalAmount').textContent=money(report.amounts.total);box('carAmount').textContent=money(report.amounts.car)+' บาท';box('motorAmount').textContent=money(report.amounts.motorcycle)+' บาท';box('motorCount').textContent=motor;box('pickupCount').textContent=pickup;box('sedanCount').textContent=sedan;box('allCount').textContent=total;box('dateFilter').innerHTML='<option value="all">ดูทั้งหมด</option>'+filteredDays.map(d=>`<option value="${d.date}">${d.date}</option>`).join('');renderCharts();renderBreakdown(motor,pickup,sedan,total);currentPage=1;renderCards(selected);box('status').textContent=`ข้อมูลสะสมทั้งหมด ${total} คัน • แสดง ${filteredDays.length}/${allDays.length} วัน`}
 function getCardList(selected='all'){const base=selected==='all'?filteredDays:filteredDays.filter(d=>d.date===selected);const q=box('searchBox').value.trim().toLowerCase();if(!q)return base;return base.map(day=>{const groups=day.groups.map(g=>{const items=g.items.filter(i=>(day.date+' '+g.title+' '+(g.company||'')+' '+i).toLowerCase().includes(q));return {...g,items,count:items.length}}).filter(g=>g.items.length);return {...day,groups,motorcycle:groups.filter(g=>g.key==='motorcycle').reduce((s,g)=>s+g.items.length,0),pickup:groups.filter(g=>g.key==='pickup').reduce((s,g)=>s+g.items.length,0),sedan:groups.filter(g=>g.key==='sedan').reduce((s,g)=>s+g.items.length,0)}}).filter(d=>d.groups.length)}
 function renderCards(selected='all'){const list=getCardList(selected);viewDays=list;const totalPages=Math.max(1,Math.ceil(list.length/pageSize));if(currentPage>totalPages)currentPage=totalPages;const start=(currentPage-1)*pageSize;const pageItems=list.slice(start,start+pageSize);box('pageInfo').textContent=`หน้า ${currentPage}/${totalPages} • แสดง ${pageItems.length}/${list.length} วัน`;box('prevPageBtn').disabled=currentPage<=1;box('nextPageBtn').disabled=currentPage>=totalPages;if(!pageItems.length){box('cards').innerHTML='<article class="day-card"><button class="day-head"><span class="day-title">ไม่พบข้อมูล</span></button></article>';return}box('cards').innerHTML=pageItems.map((day,idx)=>{const total=day.motorcycle+day.pickup+day.sedan;const groups=day.groups.map(g=>`<div class="vehicle-group"><div class="vehicle-title">${g.icon} ${g.title} (${g.items.length} คัน)</div>${g.company?`<span class="company">${g.company}</span>`:''}<ul>${g.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`).join('');const open=idx<2?' open':'';return `<article class="day-card${open}"><button class="day-head" onclick="this.parentElement.classList.toggle('open')"><span class="day-title">📊 วันที่ ${day.date}</span><span class="badge">รวม ${total} คัน</span><span class="chev">⌄</span></button><div class="day-body">${groups}</div></article>`}).join('')}
-function exportExcel(){const rows=flattenRows(viewDays.length?viewDays:filteredDays);const ws=XLSX.utils.json_to_sheet(rows.map(r=>({วันที่:r.date,ประเภทรถ:r.type,บริษัท:r.company,รายการ:r.item})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Dashboard');XLSX.writeFile(wb,'vehicle-dashboard.xlsx')}function escapeHtml(text){return String(text||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}
+function exportExcel(){const rows=flattenRows(viewDays.length?viewDays:filteredDays);const ws=XLSX.utils.json_to_sheet(rows.map(r=>({วันที่:r.date,ประเภทรถ:r.type,บริษัท:r.company,รายการ:r.item})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Dashboard');XLSX.writeFile(wb,'vehicle-dashboard.xlsx')}function escapeHtml(text){return String(text||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#039;")}
 function exportPDF(){
  const rows=flattenRows(viewDays.length?viewDays:filteredDays);
  const printedAt=new Date().toLocaleString('th-TH');
- const html=`<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8">
-<title>Vehicle Dashboard PDF</title>
-<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-@page{size:A4 landscape;margin:12mm}
-*{box-sizing:border-box}
-body{font-family:Prompt,Arial,sans-serif;color:#172033;margin:0;background:#fff}
-h1{font-size:22px;margin:0 0 6px}
-.meta{font-size:12px;color:#667085;margin-bottom:14px}
-.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
-.card{border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#f8fafc}
-.label{font-size:11px;color:#667085}
-.value{font-size:20px;font-weight:800;color:#2563eb}
-table{width:100%;border-collapse:collapse;font-size:10px}
-th{background:#2563eb;color:#fff;text-align:left;padding:7px}
-td{border-bottom:1px solid #e5e7eb;padding:6px;vertical-align:top}
-tr:nth-child(even) td{background:#f8fafc}
-.footer{margin-top:10px;font-size:10px;color:#667085}
-</style>
-</head>
-<body>
-<h1>Vehicle Cumulative Dashboard</h1>
-<div class="meta">${escapeHtml(box('status').textContent)} • Export: ${escapeHtml(printedAt)}</div>
-<div class="summary">
- <div class="card"><div class="label">ยอดรวมทั้งหมด</div><div class="value">${escapeHtml(box('totalAmount').textContent)}</div></div>
- <div class="card"><div class="label">รถจักรยานยนต์</div><div class="value">${escapeHtml(box('motorCount').textContent)}</div></div>
- <div class="card"><div class="label">รถกระบะ</div><div class="value">${escapeHtml(box('pickupCount').textContent)}</div></div>
- <div class="card"><div class="label">รถยนต์เก๋ง</div><div class="value">${escapeHtml(box('sedanCount').textContent)}</div></div>
-</div>
-<table>
-<thead><tr><th style="width:12%">วันที่</th><th style="width:18%">ประเภทรถ</th><th style="width:18%">บริษัท</th><th>รายการ</th></tr></thead>
-<tbody>
-${rows.map(r=>`<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.company)}</td><td>${escapeHtml(r.item)}</td></tr>`).join('')}
-</tbody>
-</table>
-<div class="footer">Generated from Vehicle Dashboard</div>
-<script>
-window.onload=function(){setTimeout(function(){window.print()},350)}
-</script>
-</body>
-</html>`;
- const win=window.open('','_blank');
- if(!win){alert('Browser บล็อก popup กรุณาอนุญาต popup แล้วลอง Export PDF อีกครั้ง');return}
+ const statusText=box('status')?box('status').textContent:'';
+ const totalAmount=box('totalAmount')?box('totalAmount').textContent:'0';
+ const motorCount=box('motorCount')?box('motorCount').textContent:'0';
+ const pickupCount=box('pickupCount')?box('pickupCount').textContent:'0';
+ const sedanCount=box('sedanCount')?box('sedanCount').textContent:'0';
+
+ const tableRows=rows.map(r=>{
+   return '<tr>'+
+     '<td>'+escapeHtml(r.date)+'</td>'+
+     '<td>'+escapeHtml(r.type)+'</td>'+
+     '<td>'+escapeHtml(r.company)+'</td>'+
+     '<td>'+escapeHtml(r.item)+'</td>'+
+   '</tr>';
+ }).join('');
+
+ const html=[
+   '<!DOCTYPE html>',
+   '<html lang="th">',
+   '<head>',
+   '<meta charset="UTF-8">',
+   '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+   '<title>Vehicle Dashboard PDF</title>',
+   '<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">',
+   '<style>',
+   '@page{size:A4 landscape;margin:12mm}',
+   '*{box-sizing:border-box}',
+   'body{font-family:Prompt,Arial,sans-serif;color:#172033;margin:0;background:#fff}',
+   'h1{font-size:22px;margin:0 0 6px}',
+   '.meta{font-size:12px;color:#667085;margin-bottom:14px}',
+   '.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}',
+   '.card{border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#f8fafc}',
+   '.label{font-size:11px;color:#667085}',
+   '.value{font-size:20px;font-weight:800;color:#2563eb}',
+   'table{width:100%;border-collapse:collapse;font-size:10px}',
+   'th{background:#2563eb;color:#fff;text-align:left;padding:7px}',
+   'td{border-bottom:1px solid #e5e7eb;padding:6px;vertical-align:top}',
+   'tr:nth-child(even) td{background:#f8fafc}',
+   '.footer{margin-top:10px;font-size:10px;color:#667085}',
+   '</style>',
+   '</head>',
+   '<body>',
+   '<h1>Vehicle Cumulative Dashboard</h1>',
+   '<div class="meta">'+escapeHtml(statusText)+' • Export: '+escapeHtml(printedAt)+'</div>',
+   '<div class="summary">',
+   '<div class="card"><div class="label">ยอดรวมทั้งหมด</div><div class="value">'+escapeHtml(totalAmount)+'</div></div>',
+   '<div class="card"><div class="label">รถจักรยานยนต์</div><div class="value">'+escapeHtml(motorCount)+'</div></div>',
+   '<div class="card"><div class="label">รถกระบะ</div><div class="value">'+escapeHtml(pickupCount)+'</div></div>',
+   '<div class="card"><div class="label">รถยนต์เก๋ง</div><div class="value">'+escapeHtml(sedanCount)+'</div></div>',
+   '</div>',
+   '<table>',
+   '<thead><tr><th style="width:12%">วันที่</th><th style="width:18%">ประเภทรถ</th><th style="width:18%">บริษัท</th><th>รายการ</th></tr></thead>',
+   '<tbody>'+tableRows+'</tbody>',
+   '</table>',
+   '<div class="footer">Generated from Vehicle Dashboard</div>',
+   '</body>',
+   '</html>'
+ ].join('');
+
+ const win=window.open('', '_blank');
+ if(!win){
+   alert('Browser บล็อก popup กรุณาอนุญาต popup แล้วลอง Export PDF อีกครั้ง');
+   return;
+ }
+
  win.document.open();
  win.document.write(html);
  win.document.close();
+ win.focus();
+
+ setTimeout(function(){
+   try{win.print();}catch(e){console.error(e);}
+ },700);
 }
 async function load(){box('refreshStatus').textContent='กำลังโหลดข้อมูล...';const params=new URLSearchParams();const s=box('startDate').value,e=box('endDate').value,q=box('searchBox').value.trim();if(s)params.set('start',s);if(e)params.set('end',e);if(q)params.set('q',q);const query=params.toString();const url='/api/dashboard'+(query?('?'+query+'&ts='+Date.now()):('?ts='+Date.now()));const res=await fetch(url).catch(()=>null);if(!res||!res.ok){box('status').textContent='ยังไม่มีข้อมูล';box('refreshStatus').textContent='ยังไม่มีข้อมูล';return}report=await res.json();allDays=report.dailyData;filteredDays=[...allDays];if(!s&&!e)setupRange();render();box('refreshStatus').textContent='ข้อมูลล่าสุดแล้ว • '+new Date().toLocaleTimeString('th-TH')}
 box('applyBtn').onclick=()=>load();box('resetBtn').onclick=()=>{box('startDate').value='';box('endDate').value='';box('searchBox').value='';load()};box('showDateBtn').onclick=()=>{currentPage=1;renderCards(box('dateFilter').value)};box('showAllBtn').onclick=()=>{box('dateFilter').value='all';currentPage=1;renderCards('all')};box('dateFilter').onchange=()=>{currentPage=1;renderCards(box('dateFilter').value)};box('searchBox').oninput=()=>{currentPage=1;clearTimeout(window.searchTimer);window.searchTimer=setTimeout(()=>load(),450)};box('prevPageBtn').onclick=()=>{if(currentPage>1){currentPage--;renderCards(box('dateFilter').value)}};box('nextPageBtn').onclick=()=>{currentPage++;renderCards(box('dateFilter').value)};box('exportExcelBtn').onclick=exportExcel;box('exportPdfBtn').onclick=exportPDF;load();setInterval(()=>load(),30000);

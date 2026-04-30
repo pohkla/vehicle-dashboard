@@ -1,19 +1,20 @@
-# Vehicle Dashboard v4.1 PDF Thai Fix
+# Vehicle Dashboard v4.2 Stable PDF Export
 
-แก้ปัญหา Export PDF ภาษาไทยเพี้ยน
+เวอร์ชันนี้แก้ปัญหา JavaScript หลุดไปแสดงบนหน้า Dashboard ตอนกด Export PDF
 
 ## สิ่งที่แก้
-- เปลี่ยนจาก jsPDF เป็น Browser Print / Save as PDF
-- รองรับภาษาไทยถูกต้องผ่านฟอนต์ของ Browser
-- Export PDF จะเปิดหน้าต่างใหม่ แล้วให้ Save as PDF ได้ทันที
-- ยังคง Export Excel เหมือนเดิม
+- Export PDF ไม่ใช้ jsPDF
+- ไม่ฝัง `<script>` ไว้ใน HTML template string อีกต่อไป
+- เปิดหน้าต่างใหม่แล้วสั่ง `window.print()` จากหน้าหลักแทน
+- รองรับภาษาไทยผ่าน Browser Print / Save as PDF
+- ลดความเสี่ยง HTML/JS string แตก
 
 ## วิธีใช้งาน
-1. เปิด `/dashboard`
-2. กด `Export PDF`
-3. Browser จะเปิดหน้า Print
-4. เลือก Destination = Save as PDF
-5. กด Save
+1. Deploy ไฟล์ชุดนี้แทนของเดิม
+2. เปิด `/dashboard`
+3. กด `Export PDF`
+4. เลือก `Save as PDF`
 
-## Deploy
-นำไฟล์ทั้งหมดไปแทนของเดิม แล้ว Deploy ใหม่
+## URLs
+- `/admin`
+- `/dashboard`
