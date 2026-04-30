@@ -220,19 +220,22 @@ ADMIN_HTML = """
 <title>Admin Dashboard Input</title>
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-body{margin:0;font-family:Prompt,sans-serif;background:#f5f7fb;color:#172033}.wrap{width:min(960px,94vw);margin:auto;padding:32px 0}.card{background:#fff;border-radius:24px;padding:24px;box-shadow:0 16px 40px rgba(15,23,42,.08);border:1px solid #e5e7eb}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid #e5e7eb}textarea{width:100%;height:430px;border:1px solid #e5e7eb;border-radius:16px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-sizing:border-box}input{padding:11px 14px;border:1px solid #e5e7eb;border-radius:14px;font-family:Prompt,sans-serif}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:11px 18px;font-family:Prompt,sans-serif;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,#2563eb,#14b8a6)}.btn2{background:#eff6ff;color:#1d4ed8}.status{margin-top:12px;color:#667085}
+:root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--cyan:#14b8a6;--line:#e5e7eb;--shadow:0 16px 40px rgba(15,23,42,.08)}
+*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.wrap{width:min(980px,94vw);margin:auto;padding:32px 0}.card{background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border-radius:28px;padding:26px;box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9)}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:28px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:34px}.hero p{margin:0;opacity:.9}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid var(--line)}textarea{width:100%;height:440px;border:1px solid var(--line);border-radius:18px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}input{padding:12px 14px;border:1px solid var(--line);border-radius:14px;font-family:Prompt,sans-serif}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 12px 22px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn2{background:#eff6ff;color:#1d4ed8;box-shadow:none}.status{margin-top:12px;color:var(--muted)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="nav"><a href="/admin">Admin</a><a href="/dashboard" target="_blank">Dashboard Only</a></div>
+  <div class="hero"><h1>Vehicle Dashboard Admin</h1><p>อัปเดตข้อมูลกลาง แล้วหน้า Dashboard Only จะเปลี่ยนให้ผู้ชมทุกคนทันที</p></div>
   <div class="card">
-    <h1>หน้าสร้าง Dashboard</h1>
-    <p>วางข้อความรายงาน หรืออัปโหลดไฟล์ .txt จากนั้นกดบันทึก ระบบจะอัปเดตหน้า Dashboard Only ทันที</p>
+    <h2>นำเข้าข้อมูลรายงาน</h2>
+    <p>วางข้อความรายงาน หรืออัปโหลดไฟล์ .txt จากนั้นกดบันทึก</p>
     <form id="form">
-      <input type="password" id="token" placeholder="Admin Token" required>
-      <input type="file" id="file" accept=".txt,text/plain">
-      <div style="height:12px"></div>
+      <div class="row" style="margin-bottom:12px">
+        <input type="password" id="token" placeholder="Admin Token" required>
+        <input type="file" id="file" accept=".txt,text/plain">
+      </div>
       <textarea id="raw_text" placeholder="วางข้อมูลรายสัปดาห์ตรงนี้...">{{raw_text}}</textarea>
       <div class="row">
         <button class="btn" type="submit">บันทึกและสร้าง Dashboard</button>
@@ -257,10 +260,11 @@ form.addEventListener('submit', async event => {
   const fd = new FormData();
   fd.append('raw_text', rawText.value);
   fd.append('token', document.getElementById('token').value);
+  statusBox.textContent = 'กำลังบันทึกข้อมูล...';
   const res = await fetch('/api/report', {method:'POST', body:fd});
   const data = await res.json();
   if(!res.ok){statusBox.textContent = data.detail || 'บันทึกไม่สำเร็จ';return;}
-  statusBox.textContent = 'บันทึกสำเร็จ Report ID: ' + data.id;
+  statusBox.textContent = 'บันทึกสำเร็จ Report ID: ' + data.id + ' — Dashboard อัปเดตแล้ว';
 });
 </script>
 </body>
@@ -276,50 +280,151 @@ DASHBOARD_HTML = """
 <title>Vehicle Dashboard Only</title>
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
-:root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--green:#16a34a;--orange:#f97316;--line:#e5e7eb;--shadow:0 16px 40px rgba(15,23,42,.08);--radius:22px}*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.page{width:min(1280px,94vw);margin:0 auto;padding:32px 0 48px}.hero{display:grid;grid-template-columns:1.5fr 1fr;gap:20px;margin-bottom:22px}.hero-card{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:30px;padding:30px;box-shadow:var(--shadow)}.hero-card h1{margin:0 0 10px;font-size:clamp(26px,4vw,44px)}.period-pill{display:inline-flex;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.24);padding:8px 14px;border-radius:999px;margin-bottom:18px;font-weight:500}.total-card,.panel,.kpi,.day-card,.toolbar{background:var(--card);box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.8)}.total-card{border-radius:30px;padding:26px}.label{color:var(--muted)}.amount{font-size:46px;font-weight:700;color:var(--blue);margin:8px 0}.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}.kpi{border-radius:var(--radius);padding:20px}.kpi .icon{font-size:28px;margin-bottom:8px}.kpi .value{font-size:30px;font-weight:700}.kpi .title{color:var(--muted);font-size:14px}.section-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px}.panel{border-radius:var(--radius);padding:22px}.chart-wrap{height:310px}.toolbar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin:0 0 16px;padding:16px;border-radius:var(--radius)}.filter-group{display:flex;flex-wrap:wrap;gap:10px}.date-input,.date-select{border:1px solid var(--line);border-radius:14px;padding:10px 14px;font-family:Prompt,sans-serif}.btn{border:0;border-radius:14px;padding:10px 16px;font-family:Prompt,sans-serif;font-weight:700;color:#fff;background:linear-gradient(135deg,#2563eb,#14b8a6);cursor:pointer}.btn2{color:#1d4ed8;background:#eff6ff}.daily-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}.day-card{border-radius:var(--radius);padding:20px}.day-header{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:14px}.badge{background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700}.vehicle-group{margin-top:14px}.vehicle-title{font-weight:700;margin-bottom:8px}.company{display:inline-flex;margin:6px 0 4px;padding:4px 10px;border-radius:999px;background:#f3f4f6;font-size:12px;font-weight:700}ul{list-style:none;padding:0;margin:0;display:grid;gap:7px}li{background:#f9fafb;border:1px solid #eef2f7;border-radius:14px;padding:9px 11px;font-size:13px}.summary-table{width:100%;border-collapse:collapse}.summary-table th,.summary-table td{padding:14px 12px;border-bottom:1px solid var(--line);text-align:left}.summary-table td:last-child,.summary-table th:last-child{text-align:right;font-weight:700}.status{color:var(--muted);font-size:13px}@media(max-width:980px){.hero,.section-grid,.daily-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.kpi-grid{grid-template-columns:1fr}.filter-group,.date-input,.date-select,.btn{width:100%}}
+:root{--bg:#f3f6fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--green:#16a34a;--orange:#f97316;--cyan:#14b8a6;--line:#e5e7eb;--shadow:0 18px 42px rgba(15,23,42,.08);--radius:24px}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),linear-gradient(180deg,#f8fafc,var(--bg));color:var(--text)}.page{width:min(1280px,94vw);margin:0 auto;padding:32px 0 48px}.hero{display:grid;grid-template-columns:1.5fr 1fr;gap:20px;margin-bottom:22px}.hero-card{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:30px;padding:30px;box-shadow:var(--shadow);position:relative;overflow:hidden}.hero-card:after{content:"";position:absolute;width:260px;height:260px;border-radius:999px;right:-80px;top:-80px;background:rgba(255,255,255,.12)}.hero-card>*{position:relative;z-index:1}.hero-card h1{margin:0 0 10px;font-size:clamp(28px,4vw,46px)}.hero-card p{opacity:.92}.period-pill{display:inline-flex;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.24);padding:8px 14px;border-radius:999px;margin-bottom:18px;font-weight:600}.total-card,.panel,.kpi,.day-card,.toolbar,.insight-card{background:rgba(255,255,255,.94);box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9);backdrop-filter:blur(10px)}.total-card{border-radius:30px;padding:26px}.label{color:var(--muted)}.amount{font-size:46px;font-weight:800;color:var(--blue);margin:8px 0}.summary-table{width:100%;border-collapse:collapse}.summary-table th,.summary-table td{padding:14px 12px;border-bottom:1px solid var(--line);text-align:left}.summary-table td:last-child,.summary-table th:last-child{text-align:right;font-weight:700}.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin:0 0 16px;padding:16px;border-radius:var(--radius)}.filter-group{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.date-input,.date-select,.search-input{border:1px solid var(--line);border-radius:14px;padding:10px 14px;font-family:Prompt,sans-serif;background:#fff;outline:none}.search-input{min-width:250px}.btn{border:0;border-radius:14px;padding:10px 16px;font-family:Prompt,sans-serif;font-weight:700;color:#fff;background:linear-gradient(135deg,#2563eb,#14b8a6);cursor:pointer;box-shadow:0 12px 24px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px);box-shadow:0 16px 30px rgba(37,99,235,.22)}.btn2{color:#1d4ed8;background:#eff6ff;box-shadow:none}.btnDark{background:#111827}.status-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#ecfeff;color:#155e75;font-size:13px;font-weight:700}.dot{width:8px;height:8px;border-radius:99px;background:#22c55e;box-shadow:0 0 0 5px rgba(34,197,94,.12)}.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}.kpi{border-radius:var(--radius);padding:20px;transition:.2s}.kpi:hover{transform:translateY(-2px)}.kpi .icon{font-size:28px;margin-bottom:8px}.kpi .value{font-size:30px;font-weight:800}.kpi .title{color:var(--muted);font-size:14px}.section-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px}.panel{border-radius:var(--radius);padding:22px}.chart-wrap{height:310px}.daily-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}.day-card{border-radius:var(--radius);overflow:hidden;transition:.2s}.day-card:hover{transform:translateY(-2px)}.day-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 20px;border:0;background:#fff;cursor:pointer;font-family:Prompt,sans-serif;text-align:left}.day-title{font-size:18px;font-weight:800}.badge{background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:800;white-space:nowrap}.chev{font-size:18px;color:#667085}.day-body{display:none;padding:0 20px 20px;border-top:1px solid var(--line)}.day-card.open .day-body{display:block}.vehicle-group{margin-top:14px}.vehicle-title{font-weight:800;margin-bottom:8px}.company{display:inline-flex;margin:6px 0 4px;padding:4px 10px;border-radius:999px;background:#f3f4f6;font-size:12px;font-weight:800}ul{list-style:none;padding:0;margin:0;display:grid;gap:7px}li{background:#f9fafb;border:1px solid #eef2f7;border-radius:14px;padding:9px 11px;font-size:13px}.pagination{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;margin:20px 0}.page-info{color:var(--muted);font-weight:700}.skeleton{height:130px;border-radius:22px;background:linear-gradient(90deg,#f1f5f9,#fff,#f1f5f9);background-size:200% 100%;animation:shimmer 1.2s infinite}@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}@media(max-width:980px){.hero,.section-grid,.daily-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.page{width:min(100% - 22px,1280px);padding-top:18px}.kpi-grid{grid-template-columns:1fr}.filter-group,.date-input,.date-select,.search-input,.btn{width:100%}.amount{font-size:38px}}
 </style>
 </head>
 <body>
 <main class="page">
-<section class="hero"><div class="hero-card"><div class="period-pill" id="period">📊 รายสัปดาห์</div><h1>Vehicle Weekly Dashboard</h1><p>Dashboard Only สำหรับแชร์ให้ผู้เกี่ยวข้องดูข้อมูลล่าสุด</p></div><div class="total-card"><div class="label">ยอดรวมทั้งหมด</div><div class="amount" id="totalAmount">0</div><table class="summary-table"><tr><th>หมวด</th><th>ยอด</th></tr><tr><td>🚛 🚗 รถยนต์</td><td id="carAmount">0 บาท</td></tr><tr><td>🏍 รถจักรยานยนต์</td><td id="motorAmount">0 บาท</td></tr></table></div></section>
-<section class="toolbar"><h2>เลือกช่วงวันที่ Dashboard</h2><div class="filter-group"><input class="date-input" id="startDate" type="date"><input class="date-input" id="endDate" type="date"><button class="btn" id="applyBtn">แสดงช่วงวันที่</button><button class="btn btn2" id="resetBtn">ดูทั้งหมด</button></div></section>
+<section class="hero">
+  <div class="hero-card"><div class="period-pill" id="period">📊 รายสัปดาห์</div><h1>Vehicle Weekly Dashboard</h1><p>Dashboard Only สำหรับแชร์ให้ผู้เกี่ยวข้องดูข้อมูลล่าสุด</p><div style="margin-top:18px"><span class="status-pill"><span class="dot"></span><span id="refreshStatus">Auto refresh ทุก 30 วิ</span></span></div></div>
+  <div class="total-card"><div class="label">ยอดรวมทั้งหมด</div><div class="amount" id="totalAmount">0</div><table class="summary-table"><tr><th>หมวด</th><th>ยอด</th></tr><tr><td>🚛 🚗 รถยนต์</td><td id="carAmount">0 บาท</td></tr><tr><td>🏍 รถจักรยานยนต์</td><td id="motorAmount">0 บาท</td></tr></table></div>
+</section>
+
+<section class="toolbar">
+  <h2>เลือกช่วงวันที่ Dashboard</h2>
+  <div class="filter-group"><input class="date-input" id="startDate" type="date"><input class="date-input" id="endDate" type="date"><button class="btn" id="applyBtn">แสดงช่วงวันที่</button><button class="btn btn2" id="resetBtn">ดูทั้งหมด</button></div>
+</section>
+
 <section class="kpi-grid"><div class="kpi"><div class="icon">🏍</div><div class="value" id="motorCount">0</div><div class="title">รถจักรยานยนต์</div></div><div class="kpi"><div class="icon">🚛</div><div class="value" id="pickupCount">0</div><div class="title">รถกระบะ</div></div><div class="kpi"><div class="icon">🚗</div><div class="value" id="sedanCount">0</div><div class="title">รถยนต์เก๋ง</div></div><div class="kpi"><div class="icon">🚘</div><div class="value" id="allCount">0</div><div class="title">จำนวนรถรวม</div></div></section>
+
 <section class="section-grid"><div class="panel"><h2>จำนวนรถรายวัน</h2><div class="chart-wrap"><canvas id="dailyChart"></canvas></div></div><div class="panel"><h2>สัดส่วนประเภทรถ</h2><div class="chart-wrap"><canvas id="typeChart"></canvas></div></div></section>
-<section class="toolbar"><h2>รายการแยกรายวัน</h2><div class="filter-group"><select class="date-select" id="dateFilter"><option value="all">ดูทั้งหมด</option></select><button class="btn" id="showDateBtn">แสดงวันที่เลือก</button><button class="btn btn2" id="showAllBtn">ดูทั้งหมด</button></div></section>
-<section class="daily-grid" id="cards"></section><p class="status" id="status">Loading...</p>
+
+<section class="toolbar">
+  <h2>รายการแยกรายวัน</h2>
+  <div class="filter-group">
+    <input class="search-input" id="searchBox" placeholder="ค้นหาทะเบียน / เลขกรมธรรม์ / บริษัท">
+    <select class="date-select" id="dateFilter"><option value="all">ดูทั้งหมด</option></select>
+    <button class="btn" id="showDateBtn">แสดงวันที่เลือก</button>
+    <button class="btn btn2" id="showAllBtn">ดูทั้งหมด</button>
+    <button class="btn btnDark" id="exportPdfBtn">Export PDF</button>
+    <button class="btn btnDark" id="exportExcelBtn">Export Excel</button>
+  </div>
+</section>
+
+<section class="daily-grid" id="cards"><div class="skeleton"></div><div class="skeleton"></div></section>
+<div class="pagination"><button class="btn btn2" id="prevPageBtn">ก่อนหน้า</button><span class="page-info" id="pageInfo">Page 1</span><button class="btn btn2" id="nextPageBtn">ถัดไป</button></div>
+<p class="status-pill" id="status">Loading...</p>
 </main>
+
 <script>
-let report=null, allDays=[], filteredDays=[], dailyChart=null, typeChart=null;
+let report=null, allDays=[], filteredDays=[], viewDays=[], dailyChart=null, typeChart=null, lastReportId=null;
+let currentPage=1, pageSize=6, autoTimer=null;
 const box=id=>document.getElementById(id);
 const money=n=>Math.round(n||0).toLocaleString('th-TH');
 function inRange(d,s,e){if(s&&d.isoDate<s)return false;if(e&&d.isoDate>e)return false;return true;}
 function destroy(){if(dailyChart)dailyChart.destroy();if(typeChart)typeChart.destroy();}
 function setupRange(){const dates=allDays.map(d=>d.isoDate).filter(Boolean).sort();box('startDate').value=dates[0]||'';box('endDate').value=dates[dates.length-1]||'';}
+function flattenRows(days){
+ const rows=[];
+ days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item}))));
+ return rows;
+}
+function applySearch(){
+ const q=box('searchBox').value.trim().toLowerCase();
+ if(!q){viewDays=[...filteredDays];return;}
+ viewDays=filteredDays.map(day=>{
+   const groups=day.groups.map(g=>{
+     const items=g.items.filter(i=>(day.date+' '+g.title+' '+(g.company||'')+' '+i).toLowerCase().includes(q));
+     return {...g,items,count:items.length};
+   }).filter(g=>g.items.length);
+   const motorcycle=groups.filter(g=>g.key==='motorcycle').reduce((s,g)=>s+g.items.length,0);
+   const pickup=groups.filter(g=>g.key==='pickup').reduce((s,g)=>s+g.items.length,0);
+   const sedan=groups.filter(g=>g.key==='sedan').reduce((s,g)=>s+g.items.length,0);
+   return {...day,groups,motorcycle,pickup,sedan};
+ }).filter(d=>d.groups.length);
+}
+function renderCharts(motor,pickup,sedan){
+ destroy();
+ dailyChart=new Chart(box('dailyChart'),{type:'bar',data:{labels:filteredDays.map(d=>d.date.slice(0,5)),datasets:[{label:'🏍 รถจักรยานยนต์',data:filteredDays.map(d=>d.motorcycle),backgroundColor:'#2563eb',borderRadius:10},{label:'🚛 รถกระบะ',data:filteredDays.map(d=>d.pickup),backgroundColor:'#f97316',borderRadius:10},{label:'🚗 รถยนต์เก๋ง',data:filteredDays.map(d=>d.sedan),backgroundColor:'#16a34a',borderRadius:10}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:500},scales:{y:{beginAtZero:true}}}});
+ typeChart=new Chart(box('typeChart'),{type:'doughnut',data:{labels:['รถจักรยานยนต์','รถกระบะ','รถยนต์เก๋ง'],datasets:[{data:[motor,pickup,sedan],backgroundColor:['#2563eb','#f97316','#16a34a'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'66%',animation:{duration:500}}});
+}
 function render(selected='all'){
  const motor=filteredDays.reduce((s,d)=>s+d.motorcycle,0), pickup=filteredDays.reduce((s,d)=>s+d.pickup,0), sedan=filteredDays.reduce((s,d)=>s+d.sedan,0), total=motor+pickup+sedan;
  box('period').textContent=report.period;box('totalAmount').textContent=money(report.amounts.total);box('carAmount').textContent=money(report.amounts.car)+' บาท';box('motorAmount').textContent=money(report.amounts.motorcycle)+' บาท';box('motorCount').textContent=motor;box('pickupCount').textContent=pickup;box('sedanCount').textContent=sedan;box('allCount').textContent=total;
  box('dateFilter').innerHTML='<option value="all">ดูทั้งหมด</option>'+filteredDays.map(d=>`<option value="${d.date}">${d.date}</option>`).join('');
- destroy();dailyChart=new Chart(box('dailyChart'),{type:'bar',data:{labels:filteredDays.map(d=>d.date.slice(0,5)),datasets:[{label:'🏍 รถจักรยานยนต์',data:filteredDays.map(d=>d.motorcycle),backgroundColor:'#2563eb',borderRadius:10},{label:'🚛 รถกระบะ',data:filteredDays.map(d=>d.pickup),backgroundColor:'#f97316',borderRadius:10},{label:'🚗 รถยนต์เก๋ง',data:filteredDays.map(d=>d.sedan),backgroundColor:'#16a34a',borderRadius:10}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});
- typeChart=new Chart(box('typeChart'),{type:'doughnut',data:{labels:['รถจักรยานยนต์','รถกระบะ','รถยนต์เก๋ง'],datasets:[{data:[motor,pickup,sedan],backgroundColor:['#2563eb','#f97316','#16a34a'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'66%'}});
- renderCards(selected);box('status').textContent=`แสดงข้อมูล ${filteredDays.length}/${allDays.length} วัน / ${total} คัน`;
+ renderCharts(motor,pickup,sedan);currentPage=1;renderCards(selected);box('status').textContent=`แสดงข้อมูล ${filteredDays.length}/${allDays.length} วัน / ${total} คัน`;
 }
 function renderCards(selected='all'){
- const list=selected==='all'?filteredDays:filteredDays.filter(d=>d.date===selected);
- if(!list.length){box('cards').innerHTML='<article class="day-card">ไม่พบข้อมูล</article>';return;}
- box('cards').innerHTML=list.map(day=>{const total=day.motorcycle+day.pickup+day.sedan;const groups=day.groups.map(g=>`<div class="vehicle-group"><div class="vehicle-title">${g.icon} ${g.title} (${g.items.length} คัน)</div>${g.company?`<span class="company">${g.company}</span>`:''}<ul>${g.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`).join('');return `<article class="day-card"><div class="day-header"><h3>📊 วันที่ ${day.date}</h3><span class="badge">รวม ${total} คัน</span></div>${groups}</article>`}).join('');
+ const base=selected==='all'?filteredDays:filteredDays.filter(d=>d.date===selected);
+ const q=box('searchBox').value.trim().toLowerCase();
+ let list=base;
+ if(q){
+   list=base.map(day=>{
+     const groups=day.groups.map(g=>{
+       const items=g.items.filter(i=>(day.date+' '+g.title+' '+(g.company||'')+' '+i).toLowerCase().includes(q));
+       return {...g,items,count:items.length};
+     }).filter(g=>g.items.length);
+     return {...day,groups,motorcycle:groups.filter(g=>g.key==='motorcycle').reduce((s,g)=>s+g.items.length,0),pickup:groups.filter(g=>g.key==='pickup').reduce((s,g)=>s+g.items.length,0),sedan:groups.filter(g=>g.key==='sedan').reduce((s,g)=>s+g.items.length,0)};
+   }).filter(d=>d.groups.length);
+ }
+ viewDays=list;
+ const totalPages=Math.max(1,Math.ceil(list.length/pageSize));
+ if(currentPage>totalPages) currentPage=totalPages;
+ const start=(currentPage-1)*pageSize;
+ const pageItems=list.slice(start,start+pageSize);
+ box('pageInfo').textContent=`หน้า ${currentPage}/${totalPages} • แสดง ${pageItems.length}/${list.length} วัน`;
+ box('prevPageBtn').disabled=currentPage<=1;box('nextPageBtn').disabled=currentPage>=totalPages;
+ if(!pageItems.length){box('cards').innerHTML='<article class="day-card"><button class="day-head"><span class="day-title">ไม่พบข้อมูล</span></button></article>';return;}
+ box('cards').innerHTML=pageItems.map((day,idx)=>{
+   const total=day.motorcycle+day.pickup+day.sedan;
+   const groups=day.groups.map(g=>`<div class="vehicle-group"><div class="vehicle-title">${g.icon} ${g.title} (${g.items.length} คัน)</div>${g.company?`<span class="company">${g.company}</span>`:''}<ul>${g.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`).join('');
+   const open=idx<2?' open':'';
+   return `<article class="day-card${open}"><button class="day-head" onclick="this.parentElement.classList.toggle('open')"><span class="day-title">📊 วันที่ ${day.date}</span><span class="badge">รวม ${total} คัน</span><span class="chev">⌄</span></button><div class="day-body">${groups}</div></article>`;
+ }).join('');
 }
-async function load(){const res=await fetch('/api/report/latest');if(!res.ok){box('status').textContent='ยังไม่มีข้อมูล';return;}report=await res.json();allDays=report.dailyData;filteredDays=[...allDays];setupRange();render();}
-box('applyBtn').onclick=()=>{filteredDays=allDays.filter(d=>inRange(d,box('startDate').value,box('endDate').value));render('all')};
-box('resetBtn').onclick=()=>{filteredDays=[...allDays];setupRange();render('all')};
-box('showDateBtn').onclick=()=>renderCards(box('dateFilter').value);
-box('showAllBtn').onclick=()=>{box('dateFilter').value='all';renderCards('all')};
-box('dateFilter').onchange=()=>renderCards(box('dateFilter').value);
-load();
+function exportExcel(){
+ const rows=flattenRows(viewDays.length?viewDays:filteredDays);
+ const ws=XLSX.utils.json_to_sheet(rows.map(r=>({วันที่:r.date,ประเภทรถ:r.type,บริษัท:r.company,รายการ:r.item})));
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Dashboard');
+ XLSX.writeFile(wb,'vehicle-dashboard.xlsx');
+}
+function exportPDF(){
+ const rows=flattenRows(viewDays.length?viewDays:filteredDays).map(r=>[r.date,r.type,r.company,r.item]);
+ const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});
+ doc.setFontSize(16);doc.text('Vehicle Weekly Dashboard',14,16);
+ doc.setFontSize(10);doc.text(box('status').textContent,14,24);
+ doc.autoTable({head:[['Date','Type','Company','Item']],body:rows,startY:30,styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[37,99,235]}});
+ doc.save('vehicle-dashboard.pdf');
+}
+async function load(silent=false){
+ if(!silent) box('refreshStatus').textContent='กำลังโหลดข้อมูล...';
+ const res=await fetch('/api/report/latest?ts='+Date.now());
+ if(!res.ok){box('status').textContent='ยังไม่มีข้อมูล';box('refreshStatus').textContent='ยังไม่มีข้อมูล';return;}
+ const data=await res.json();
+ if(silent && lastReportId===data.id){box('refreshStatus').textContent='ข้อมูลล่าสุดแล้ว • '+new Date().toLocaleTimeString('th-TH');return;}
+ report=data;lastReportId=data.id;allDays=report.dailyData;filteredDays=[...allDays];setupRange();render();box('refreshStatus').textContent='Auto refresh ทุก 30 วิ • '+new Date().toLocaleTimeString('th-TH');
+}
+box('applyBtn').onclick=()=>{filteredDays=allDays.filter(d=>inRange(d,box('startDate').value,box('endDate').value));currentPage=1;render('all')};
+box('resetBtn').onclick=()=>{filteredDays=[...allDays];setupRange();currentPage=1;box('searchBox').value='';render('all')};
+box('showDateBtn').onclick=()=>{currentPage=1;renderCards(box('dateFilter').value)};
+box('showAllBtn').onclick=()=>{box('dateFilter').value='all';currentPage=1;renderCards('all')};
+box('dateFilter').onchange=()=>{currentPage=1;renderCards(box('dateFilter').value)};
+box('searchBox').oninput=()=>{currentPage=1;renderCards(box('dateFilter').value)};
+box('prevPageBtn').onclick=()=>{if(currentPage>1){currentPage--;renderCards(box('dateFilter').value)}};
+box('nextPageBtn').onclick=()=>{currentPage++;renderCards(box('dateFilter').value)};
+box('exportExcelBtn').onclick=exportExcel;
+box('exportPdfBtn').onclick=exportPDF;
+load();autoTimer=setInterval(()=>load(true),30000);
 </script>
 </body>
 </html>
 """
+
 
 @app.get("/", include_in_schema=False)
 def root() -> RedirectResponse:

@@ -1,42 +1,32 @@
-# Vehicle Weekly Dashboard
+# Vehicle Weekly Dashboard v2
 
-ระบบ Dashboard รายสัปดาห์แบบ Production Deploy
+อัปเกรดตามคำขอ:
+- Card รายวันแบบ Collapse/Expand
+- Pagination เพื่อรองรับข้อมูลเยอะ
+- Export PDF
+- Export Excel
+- Auto Refresh ทุก 30 วินาที
+- UI Premium Polish
+- Search รายการรถ / บริษัท / กรมธรรม์
 
-## URL
-
-- `/admin` สำหรับวางข้อมูลหรืออัปโหลดข้อมูล
-- `/dashboard` สำหรับแชร์ให้คนอื่นดู Dashboard Only
-- `/api/report/latest` API ข้อมูลล่าสุด
-
-## Local Run
+## Run Local
 
 ```bash
 pip install -r requirements.txt
 uvicorn app:app --reload
 ```
 
-เปิด:
+## URLs
 
 ```text
-http://127.0.0.1:8000/admin
-http://127.0.0.1:8000/dashboard
+/admin
+/dashboard
 ```
 
-## Render Deploy
+## Render
 
-1. สร้าง GitHub Repository
-2. อัปโหลดไฟล์ทั้งหมด
-3. สร้าง Web Service บน Render
-4. ตั้ง Environment Variable:
+ใช้ไฟล์ `render.yaml` ได้เลย แล้วตั้งค่า:
 
 ```text
 ADMIN_TOKEN=รหัสลับของคุณ
 ```
-
-5. แชร์ Dashboard:
-
-```text
-https://your-app.onrender.com/dashboard
-```
-
-หมายเหตุ: Render Free ไม่มี persistent disk ตามค่าเริ่มต้น ข้อมูล SQLite อาจหายเมื่อ redeploy/restart ถ้าใช้งานจริงระยะยาวแนะนำ PostgreSQL หรือ Persistent Disk
