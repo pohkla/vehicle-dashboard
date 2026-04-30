@@ -1,33 +1,34 @@
-# Vehicle Dashboard v4.5 Smart Cards
+# Vehicle Dashboard v5 Hybrid SQLite Cache
 
-อัปเกรดส่วนรายการแยกรายวันตามคำขอ:
+Hybrid Mode: SQLite + Persistent Disk + Cache + Performance PRAGMA
 
-1. Compact Mode
-   - เพิ่มปุ่ม Detail / Compact
-   - Compact แสดงการ์ดแบบสั้น อ่านเร็ว
+## เพิ่มอะไรบ้าง
+- SQLite path ผ่าน `SQLITE_DB_PATH`
+- ใช้ `/var/data/vehicle_dashboard.db` สำหรับ Render Persistent Disk
+- WAL mode เพื่อ performance ดีขึ้น
+- Dashboard API cache TTL 20 วินาที
+- Import แล้ว clear cache อัตโนมัติ
+- `/api/health` สำหรับเช็ค DB path และจำนวน records
+- `/api/cache/clear` สำหรับ clear cache เอง
 
-2. Highlight สีตามจำนวน
-   - Peak Day มีแถบสีและ tag
-   - วันที่สูงเด่นมี highlight
-   - วันที่ต่ำมี Low tag / opacity ลดลง
+## สำคัญ
+ถ้าใช้ Render แล้วต้องการให้ข้อมูลไม่หาย ต้องใช้ Persistent Disk หรือแผนที่รองรับ Disk
 
-3. Quick Summary ใน Card
-   - แสดง 🏍 🚛 🚗 ในหัวการ์ดทันที
-   - ไม่ต้องเปิดก็เห็นจำนวนแต่ละประเภท
+## Local Run
+```bash
+pip install -r requirements.txt
+uvicorn app:app --reload
+```
 
-4. Animation
-   - Card hover lift/scale
-   - Smooth expand/collapse ด้วย max-height
-   - Chevron rotate
-   - item hover slide
+## URLs
+- `/admin`
+- `/dashboard`
+- `/api/health`
 
-5. Lazy Render
-   - Detail ของวันจะยังไม่ render จนกว่าจะกดเปิด card
-   - การ์ด 2 ใบแรกใน Detail Mode เปิดอัตโนมัติและ render ไว้
-   - Compact Mode ไม่ render detail เพื่อลดโหลด
-
-ยังคงไว้:
-- Replace All import mode
-- Export PDF/Excel พร้อม Summary
-- Stacked Bar + Trend Line
-- Hybrid Breakdown Card
+## Environment Variables
+```text
+ADMIN_TOKEN=your-secret-token
+DATA_DIR=/var/data
+SQLITE_DB_PATH=/var/data/vehicle_dashboard.db
+CACHE_TTL_SECONDS=20
+```

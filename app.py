@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -9,15 +10,28 @@ from typing import Any
 from fastapi import FastAPI, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-DB_PATH = Path("vehicle_dashboard.db")
+DATA_DIR = Path(os.getenv("DATA_DIR", "/var/data"))
+if not DATA_DIR.exists():
+    DATA_DIR = Path(".")
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+DB_PATH = Path(os.getenv("SQLITE_DB_PATH", str(DATA_DIR / "vehicle_dashboard.db")))
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "change-this-token")
 
-app = FastAPI(title="Vehicle Dashboard v4.5 Smart Cards")
+CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
+DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
+
+app = FastAPI(title="Vehicle Dashboard v5 Hybrid SQLite Cache")
 
 
 def connect_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA temp_store=MEMORY")
+    conn.execute("PRAGMA cache_size=-20000")
+    conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 
@@ -69,6 +83,31 @@ def init_db() -> None:
 @app.on_event("startup")
 def startup() -> None:
     init_db()
+
+
+def make_cache_key(start: str | None, end: str | None, q: str | None) -> str:
+    return f"start={start or ''}|end={end or ''}|q={q or ''}"
+
+
+def clear_dashboard_cache() -> None:
+    DASHBOARD_CACHE["key"] = None
+    DASHBOARD_CACHE["data"] = None
+    DASHBOARD_CACHE["created_at"] = 0.0
+
+
+def get_cached_dashboard(key: str) -> dict[str, Any] | None:
+    if DASHBOARD_CACHE["key"] != key or DASHBOARD_CACHE["data"] is None:
+        return None
+    if time.time() - float(DASHBOARD_CACHE["created_at"] or 0) > CACHE_TTL_SECONDS:
+        return None
+    return DASHBOARD_CACHE["data"]
+
+
+def set_cached_dashboard(key: str, data: dict[str, Any]) -> None:
+    DASHBOARD_CACHE["key"] = key
+    DASHBOARD_CACHE["data"] = data
+    DASHBOARD_CACHE["created_at"] = time.time()
+
 
 
 def only_number(value: str) -> float:
@@ -262,6 +301,8 @@ def save_import_replace_all(raw_text: str) -> dict[str, int]:
             replaced_summaries += 1
 
         conn.commit()
+
+    clear_dashboard_cache()
 
     return {
         "report_id": report_id,
@@ -551,8 +592,41 @@ def api_dashboard(
     end: str | None = Query(default=None),
     q: str | None = Query(default=None),
 ) -> JSONResponse:
-    return JSONResponse(get_dashboard_data(start=start, end=end, q=q))
+    cache_key = make_cache_key(start, end, q)
+    cached = get_cached_dashboard(cache_key)
+    if cached is not None:
+        cached_copy = dict(cached)
+        cached_copy["cache"] = {"hit": True, "ttl": CACHE_TTL_SECONDS}
+        return JSONResponse(cached_copy)
+    data = get_dashboard_data(start=start, end=end, q=q)
+    data["cache"] = {"hit": False, "ttl": CACHE_TTL_SECONDS}
+    set_cached_dashboard(cache_key, data)
+    return JSONResponse(data)
 
+
+
+@app.get("/api/health")
+def api_health() -> JSONResponse:
+    with connect_db() as conn:
+        daily_count = conn.execute("SELECT COUNT(*) AS c FROM daily_records").fetchone()["c"]
+        summary_count = conn.execute("SELECT COUNT(*) AS c FROM weekly_summaries").fetchone()["c"]
+    return JSONResponse({
+        "ok": True,
+        "db_path": str(DB_PATH),
+        "data_dir": str(DATA_DIR),
+        "daily_records": int(daily_count or 0),
+        "weekly_summaries": int(summary_count or 0),
+        "cache_ttl_seconds": CACHE_TTL_SECONDS,
+        "cache_key": DASHBOARD_CACHE.get("key"),
+    })
+
+
+@app.post("/api/cache/clear")
+def api_cache_clear(token: str = Form(...)) -> JSONResponse:
+    if token != ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
+    clear_dashboard_cache()
+    return JSONResponse({"ok": True, "message": "cache cleared"})
 
 @app.get("/api/report/latest")
 def api_latest_report() -> JSONResponse:

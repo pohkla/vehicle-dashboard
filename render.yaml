@@ -2,9 +2,19 @@ services:
   - type: web
     name: vehicle-weekly-dashboard
     env: python
-    plan: free
+    plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: ADMIN_TOKEN
         value: change-this-token
+      - key: DATA_DIR
+        value: /var/data
+      - key: SQLITE_DB_PATH
+        value: /var/data/vehicle_dashboard.db
+      - key: CACHE_TTL_SECONDS
+        value: 20
+    disk:
+      name: vehicle-dashboard-data
+      mountPath: /var/data
+      sizeGB: 1
