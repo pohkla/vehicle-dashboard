@@ -1,27 +1,19 @@
-# Vehicle Dashboard v4 Chart UI
+# Vehicle Dashboard v4.1 PDF Thai Fix
 
-อัปเกรดจาก v3.3:
-1. กราฟซ้าย: Stacked Bar + Trend Line รวมทั้งหมด
-2. กราฟขวา: เปลี่ยน Donut เป็น Hybrid Breakdown Card
-3. UI Premium:
-   - Gradient background
-   - Glow shadow
-   - Hover effects
-   - Focus state
-   - Better visual hierarchy
+แก้ปัญหา Export PDF ภาษาไทยเพี้ยน
 
-## Import Logic
-ยังคงใช้ Replace All:
-- Import ใหม่จะล้างข้อมูลเก่าทั้งหมด
-- Dashboard เท่ากับข้อมูลชุดล่าสุด
+## สิ่งที่แก้
+- เปลี่ยนจาก jsPDF เป็น Browser Print / Save as PDF
+- รองรับภาษาไทยถูกต้องผ่านฟอนต์ของ Browser
+- Export PDF จะเปิดหน้าต่างใหม่ แล้วให้ Save as PDF ได้ทันที
+- ยังคง Export Excel เหมือนเดิม
 
-## Run
+## วิธีใช้งาน
+1. เปิด `/dashboard`
+2. กด `Export PDF`
+3. Browser จะเปิดหน้า Print
+4. เลือก Destination = Save as PDF
+5. กด Save
 
-```bash
-pip install -r requirements.txt
-uvicorn app:app --reload
-```
-
-## URL
-- `/admin`
-- `/dashboard`
+## Deploy
+นำไฟล์ทั้งหมดไปแทนของเดิม แล้ว Deploy ใหม่
