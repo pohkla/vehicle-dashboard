@@ -1,42 +1,30 @@
-# Vehicle Weekly Dashboard v3 Production
+# Vehicle Dashboard v3.1 Cumulative
 
-Production Data Model:
-- `reports` เก็บ raw text ที่นำเข้า
-- `daily_records` เก็บข้อมูลรายคัน
-- Deduplicate ด้วย `date + vehicle_type + company + item`
-- Dashboard query จาก daily_records โดยตรง
-- รองรับข้อมูลสะสมหลายสัปดาห์/หลายเดือน/หลายปี
+แก้ตามคำขอ:
+1. Backend:
+   - ไม่ใช้ period/yod รวมจาก raw text ล่าสุด
+   - คำนวณจำนวนรถจาก daily_records ด้วย SQL SUM/COUNT จาก DB
+   - คำนวณยอดเงินสะสมจาก reports ทั้งหมด
+2. Frontend:
+   - เอาข้อความรายสัปดาห์ออก
+   - แสดงเป็น Dashboard ข้อมูลสะสมทั้งหมด
 
-## Features
-- Append import
-- Deduplication
-- Cross-week date filtering
-- Search server-side
-- Collapse/Expand cards
-- Pagination
-- Export PDF
-- Export Excel
-- Auto Refresh 30s
-
-## Run Local
+## Run
 
 ```bash
 pip install -r requirements.txt
 uvicorn app:app --reload
 ```
 
-## URLs
+## URL
 
-```text
-/admin
-/dashboard
-/api/dashboard
-```
+- `/admin`
+- `/dashboard`
 
 ## Deploy Render
 
-ตั้ง Environment Variable:
+ตั้งค่า:
 
 ```text
-ADMIN_TOKEN=your-secret-token
+ADMIN_TOKEN=your-secret
 ```

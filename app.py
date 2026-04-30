@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 DB_PATH = Path("vehicle_dashboard.db")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "change-this-token")
 
-app = FastAPI(title="Vehicle Weekly Dashboard v3 Production")
+app = FastAPI(title="Vehicle Dashboard v3.1 Cumulative")
 
 
 def connect_db() -> sqlite3.Connection:
@@ -45,7 +45,7 @@ def init_db() -> None:
                 company TEXT,
                 item TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                UNIQUE(iso_date, vehicle_type, COALESCE(company, ''), item)
+                UNIQUE(iso_date, vehicle_type, company, item)
             )
             """
         )
@@ -97,7 +97,12 @@ def vehicle_meta(line: str) -> dict[str, str] | None:
     return None
 
 
-def parse_amounts(lines: list[str]) -> dict[str, int]:
+def parse_weekly_amounts(lines: list[str]) -> dict[str, int]:
+    """
+    Parse weekly money summary from imported raw text.
+    This is stored at report-level because the raw format does not provide amount per vehicle item.
+    The Dashboard then sums money from all imported reports.
+    """
     result = {"car": 0, "motorcycle": 0, "total": 0}
     for line in lines:
         if "บาท" not in line:
@@ -115,20 +120,6 @@ def parse_amounts(lines: list[str]) -> dict[str, int]:
     if not result["total"]:
         result["total"] = result["car"] + result["motorcycle"]
     return result
-
-
-def parse_period(lines: list[str]) -> str:
-    periods = []
-    for line in lines:
-        if "รายสัปดาห์" in line and any(ch.isdigit() for ch in line):
-            clean = line.replace("#", "").strip()
-            if clean not in periods:
-                periods.append(clean)
-    if not periods:
-        return "📊 รายสัปดาห์"
-    if len(periods) == 1:
-        return periods[0]
-    return f"📊 รวมข้อมูล {len(periods)} สัปดาห์"
 
 
 def parse_report(raw_text: str) -> dict[str, Any]:
@@ -172,14 +163,13 @@ def parse_report(raw_text: str) -> dict[str, Any]:
                     "vehicleType": current_meta["key"],
                     "vehicleTitle": current_meta["title"],
                     "icon": current_meta["icon"],
-                    "company": current_company,
+                    "company": current_company or "",
                     "item": item_text,
                 }
             )
 
     return {
-        "period": parse_period(lines),
-        "amounts": parse_amounts(lines),
+        "money": parse_weekly_amounts(lines),
         "rows": rows,
     }
 
@@ -233,6 +223,28 @@ def save_import(raw_text: str) -> dict[str, int]:
     }
 
 
+def get_money_totals_from_reports() -> dict[str, int]:
+    """
+    ✅ Backend fix:
+    Sum money from every imported report stored in DB.
+    This replaces frontend/text-only latest weekly period logic.
+    """
+    with connect_db() as conn:
+        rows = conn.execute("SELECT raw_text FROM reports ORDER BY id ASC").fetchall()
+
+    totals = {"car": 0, "motorcycle": 0, "total": 0}
+    for row in rows:
+        parsed = parse_report(row["raw_text"])
+        totals["car"] += parsed["money"]["car"]
+        totals["motorcycle"] += parsed["money"]["motorcycle"]
+        totals["total"] += parsed["money"]["total"]
+
+    if not totals["total"]:
+        totals["total"] = totals["car"] + totals["motorcycle"]
+
+    return totals
+
+
 def get_dashboard_data(start: str | None = None, end: str | None = None, q: str | None = None) -> dict[str, Any]:
     where = []
     params: list[Any] = []
@@ -261,12 +273,27 @@ def get_dashboard_data(start: str | None = None, end: str | None = None, q: str 
             params,
         ).fetchall()
 
-        amount_rows = conn.execute(
-            "SELECT raw_text FROM reports ORDER BY id ASC"
-        ).fetchall()
+        # ✅ Backend fix:
+        # Count vehicle totals from DB, not from raw text.
+        total_row = conn.execute(
+            f"""
+            SELECT
+              SUM(CASE WHEN vehicle_type = 'motorcycle' THEN 1 ELSE 0 END) AS motorcycle,
+              SUM(CASE WHEN vehicle_type = 'pickup' THEN 1 ELSE 0 END) AS pickup,
+              SUM(CASE WHEN vehicle_type = 'sedan' THEN 1 ELSE 0 END) AS sedan,
+              COUNT(*) AS all_count
+            FROM daily_records
+            {where_sql}
+            """,
+            params,
+        ).fetchone()
 
-    all_raw = "\n\n".join(row["raw_text"] for row in amount_rows)
-    parsed_amounts = parse_report(all_raw) if all_raw else {"period": "📊 รายสัปดาห์", "amounts": {"car": 0, "motorcycle": 0, "total": 0}}
+        range_row = conn.execute(
+            """
+            SELECT MIN(iso_date) AS min_date, MAX(iso_date) AS max_date
+            FROM daily_records
+            """
+        ).fetchone()
 
     days: dict[str, Any] = {}
     for row in rows:
@@ -307,19 +334,23 @@ def get_dashboard_data(start: str | None = None, end: str | None = None, q: str 
         day["groups"] = groups
         daily_data.append(day)
 
-    total_motorcycle = sum(day["motorcycle"] for day in daily_data)
-    total_pickup = sum(day["pickup"] for day in daily_data)
-    total_sedan = sum(day["sedan"] for day in daily_data)
+    money_totals = get_money_totals_from_reports()
 
     return {
-        "period": parsed_amounts["period"],
-        "amounts": parsed_amounts["amounts"],
+        # ✅ Frontend fix support:
+        # Do not send weekly period. Send cumulative label.
+        "period": "📊 Dashboard ข้อมูลสะสมทั้งหมด",
+        "amounts": money_totals,
         "dailyData": daily_data,
         "totals": {
-            "motorcycle": total_motorcycle,
-            "pickup": total_pickup,
-            "sedan": total_sedan,
-            "all": total_motorcycle + total_pickup + total_sedan,
+            "motorcycle": int(total_row["motorcycle"] or 0),
+            "pickup": int(total_row["pickup"] or 0),
+            "sedan": int(total_row["sedan"] or 0),
+            "all": int(total_row["all_count"] or 0),
+        },
+        "dateRange": {
+            "start": range_row["min_date"] if range_row else None,
+            "end": range_row["max_date"] if range_row else None,
         },
         "recordCount": len(rows),
     }
@@ -410,8 +441,8 @@ DASHBOARD_HTML = """
 <body>
 <main class="page">
 <section class="hero">
-  <div class="hero-card"><div class="period-pill" id="period">📊 รายสัปดาห์</div><h1>Vehicle Weekly Dashboard</h1><p>Production Dashboard ดึงข้อมูลจาก daily_records และรองรับข้อมูลสะสมระยะยาว</p><div style="margin-top:18px"><span class="status-pill"><span class="dot"></span><span id="refreshStatus">Auto refresh ทุก 30 วิ</span></span></div></div>
-  <div class="total-card"><div class="label">ยอดรวมจากรายงานทั้งหมด</div><div class="amount" id="totalAmount">0</div><table class="summary-table"><tr><th>หมวด</th><th>ยอด</th></tr><tr><td>🚛 🚗 รถยนต์</td><td id="carAmount">0 บาท</td></tr><tr><td>🏍 รถจักรยานยนต์</td><td id="motorAmount">0 บาท</td></tr></table></div>
+  <div class="hero-card"><div class="period-pill" id="period">📊 Dashboard ข้อมูลสะสมทั้งหมด</div><h1>Vehicle Cumulative Dashboard</h1><p>Dashboard Only สำหรับข้อมูลสะสมทั้งหมดจากฐานข้อมูล</p><div style="margin-top:18px"><span class="status-pill"><span class="dot"></span><span id="refreshStatus">Auto refresh ทุก 30 วิ</span></span></div></div>
+  <div class="total-card"><div class="label">ยอดรวมทั้งหมด</div><div class="amount" id="totalAmount">0</div><table class="summary-table"><tr><th>หมวด</th><th>ยอด</th></tr><tr><td>🚛 🚗 รถยนต์</td><td id="carAmount">0 บาท</td></tr><tr><td>🏍 รถจักรยานยนต์</td><td id="motorAmount">0 บาท</td></tr></table></div>
 </section>
 
 <section class="toolbar">
@@ -419,7 +450,7 @@ DASHBOARD_HTML = """
   <div class="filter-group"><input class="date-input" id="startDate" type="date"><input class="date-input" id="endDate" type="date"><button class="btn" id="applyBtn">แสดงช่วงวันที่</button><button class="btn btn2" id="resetBtn">ดูทั้งหมด</button></div>
 </section>
 
-<section class="kpi-grid"><div class="kpi"><div class="icon">🏍</div><div class="value" id="motorCount">0</div><div class="title">รถจักรยานยนต์</div></div><div class="kpi"><div class="icon">🚛</div><div class="value" id="pickupCount">0</div><div class="title">รถกระบะ</div></div><div class="kpi"><div class="icon">🚗</div><div class="value" id="sedanCount">0</div><div class="title">รถยนต์เก๋ง</div></div><div class="kpi"><div class="icon">🚘</div><div class="value" id="allCount">0</div><div class="title">จำนวนรถรวม</div></div></section>
+<section class="kpi-grid"><div class="kpi"><div class="icon">🏍</div><div class="value" id="motorCount">0</div><div class="title">รถจักรยานยนต์</div></div><div class="kpi"><div class="icon">🚛</div><div class="value" id="pickupCount">0</div><div class="title">รถกระบะ</div></div><div class="kpi"><div class="icon">🚗</div><div class="value" id="sedanCount">0</div><div class="title">รถยนต์เก๋ง</div></div><div class="kpi"><div class="icon">🚘</div><div class="value" id="allCount">0</div><div class="title">จำนวนรถรวมทั้งหมด</div></div></section>
 
 <section class="section-grid"><div class="panel"><h2>จำนวนรถรายวัน</h2><div class="chart-wrap"><canvas id="dailyChart"></canvas></div></div><div class="panel"><h2>สัดส่วนประเภทรถ</h2><div class="chart-wrap"><canvas id="typeChart"></canvas></div></div></section>
 
@@ -445,7 +476,6 @@ let report=null, allDays=[], filteredDays=[], viewDays=[], dailyChart=null, type
 let currentPage=1, pageSize=8, autoTimer=null;
 const box=id=>document.getElementById(id);
 const money=n=>Math.round(n||0).toLocaleString('th-TH');
-function inRange(d,s,e){if(s&&d.isoDate<s)return false;if(e&&d.isoDate>e)return false;return true;}
 function destroy(){if(dailyChart)dailyChart.destroy();if(typeChart)typeChart.destroy();}
 function setupRange(){const dates=allDays.map(d=>d.isoDate).filter(Boolean).sort();box('startDate').value=dates[0]||'';box('endDate').value=dates[dates.length-1]||'';}
 function flattenRows(days){const rows=[];days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item}))));return rows;}
@@ -455,10 +485,15 @@ function renderCharts(motor,pickup,sedan){
  typeChart=new Chart(box('typeChart'),{type:'doughnut',data:{labels:['รถจักรยานยนต์','รถกระบะ','รถยนต์เก๋ง'],datasets:[{data:[motor,pickup,sedan],backgroundColor:['#2563eb','#f97316','#16a34a'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'66%'}});
 }
 function render(selected='all'){
- const motor=filteredDays.reduce((s,d)=>s+d.motorcycle,0), pickup=filteredDays.reduce((s,d)=>s+d.pickup,0), sedan=filteredDays.reduce((s,d)=>s+d.sedan,0), total=motor+pickup+sedan;
- box('period').textContent=report.period;box('totalAmount').textContent=money(report.amounts.total);box('carAmount').textContent=money(report.amounts.car)+' บาท';box('motorAmount').textContent=money(report.amounts.motorcycle)+' บาท';box('motorCount').textContent=motor;box('pickupCount').textContent=pickup;box('sedanCount').textContent=sedan;box('allCount').textContent=total;
+ const totals=report.totals || {};
+ const motor=totals.motorcycle||0, pickup=totals.pickup||0, sedan=totals.sedan||0, total=totals.all||0;
+ box('period').textContent='📊 Dashboard ข้อมูลสะสมทั้งหมด';
+ box('totalAmount').textContent=money(report.amounts.total);
+ box('carAmount').textContent=money(report.amounts.car)+' บาท';
+ box('motorAmount').textContent=money(report.amounts.motorcycle)+' บาท';
+ box('motorCount').textContent=motor;box('pickupCount').textContent=pickup;box('sedanCount').textContent=sedan;box('allCount').textContent=total;
  box('dateFilter').innerHTML='<option value="all">ดูทั้งหมด</option>'+filteredDays.map(d=>`<option value="${d.date}">${d.date}</option>`).join('');
- renderCharts(motor,pickup,sedan);currentPage=1;renderCards(selected);box('status').textContent=`แสดงข้อมูล ${filteredDays.length}/${allDays.length} วัน / ${total} คัน`;
+ renderCharts(motor,pickup,sedan);currentPage=1;renderCards(selected);box('status').textContent=`ข้อมูลสะสมทั้งหมด ${total} คัน • แสดง ${filteredDays.length}/${allDays.length} วัน`;
 }
 function getCardList(selected='all'){
  const base=selected==='all'?filteredDays:filteredDays.filter(d=>d.date===selected);
@@ -490,16 +525,17 @@ function renderCards(selected='all'){
  }).join('');
 }
 function exportExcel(){const rows=flattenRows(viewDays.length?viewDays:filteredDays);const ws=XLSX.utils.json_to_sheet(rows.map(r=>({วันที่:r.date,ประเภทรถ:r.type,บริษัท:r.company,รายการ:r.item})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Dashboard');XLSX.writeFile(wb,'vehicle-dashboard.xlsx');}
-function exportPDF(){const rows=flattenRows(viewDays.length?viewDays:filteredDays).map(r=>[r.date,r.type,r.company,r.item]);const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});doc.setFontSize(16);doc.text('Vehicle Weekly Dashboard',14,16);doc.setFontSize(10);doc.text(box('status').textContent,14,24);doc.autoTable({head:[['Date','Type','Company','Item']],body:rows,startY:30,styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[37,99,235]}});doc.save('vehicle-dashboard.pdf');}
+function exportPDF(){const rows=flattenRows(viewDays.length?viewDays:filteredDays).map(r=>[r.date,r.type,r.company,r.item]);const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});doc.setFontSize(16);doc.text('Vehicle Cumulative Dashboard',14,16);doc.setFontSize(10);doc.text(box('status').textContent,14,24);doc.autoTable({head:[['Date','Type','Company','Item']],body:rows,startY:30,styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[37,99,235]}});doc.save('vehicle-dashboard.pdf');}
 async function load(silent=false){
  if(!silent) box('refreshStatus').textContent='กำลังโหลดข้อมูล...';
  const params=new URLSearchParams();
  const s=box('startDate').value,e=box('endDate').value,q=box('searchBox').value.trim();
  if(s) params.set('start',s); if(e) params.set('end',e); if(q) params.set('q',q);
- const url='/api/dashboard'+(params.toString()?('?'+params.toString()):'');
- const res=await fetch(url+'&ts='+Date.now()).catch(()=>null);
+ const query=params.toString();
+ const url='/api/dashboard'+(query?('?'+query+'&ts='+Date.now()):('?ts='+Date.now()));
+ const res=await fetch(url).catch(()=>null);
  if(!res||!res.ok){box('status').textContent='ยังไม่มีข้อมูล';box('refreshStatus').textContent='ยังไม่มีข้อมูล';return;}
- report=await res.json();allDays=report.dailyData;filteredDays=[...allDays];if(!s&&!e) setupRange();render();box('refreshStatus').textContent='Auto refresh ทุก 30 วิ • '+new Date().toLocaleTimeString('th-TH');
+ report=await res.json();allDays=report.dailyData;filteredDays=[...allDays];if(!s&&!e) setupRange();render();box('refreshStatus').textContent='ข้อมูลล่าสุดแล้ว • '+new Date().toLocaleTimeString('th-TH');
 }
 box('applyBtn').onclick=()=>load();
 box('resetBtn').onclick=()=>{box('startDate').value='';box('endDate').value='';box('searchBox').value='';load()};
@@ -555,5 +591,4 @@ def api_dashboard(
 
 @app.get("/api/report/latest")
 def api_latest_report() -> JSONResponse:
-    # Backward compatible endpoint
     return api_dashboard()
