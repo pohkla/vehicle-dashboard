@@ -1,30 +1,25 @@
-# Vehicle Dashboard v4.3 Sparkline Hover Animation
+# Vehicle Dashboard v4.4 Export Summary Clean UI
 
-เพิ่มตามคำขอ:
-1. Sparkline ใน KPI ทุกใบ
-2. Hover Highlight บนกราฟหลัก
-   - Hover วันเดียวแล้ววันอื่น dim ลง
-   - Tooltip แสดงยอดรวมของวันนั้น
-3. Animation / Micro Interaction
-   - KPI count animation
-   - KPI hover glow
-   - Card hover lift + scale
-   - Expand animation
-   - List item hover
+แก้ตามคำขอ:
+1. Export PDF เพิ่มสรุปยอดรวม:
+   - ยอดเงินรวมทั้งหมด
+   - ยอดเงินรถยนต์
+   - ยอดเงินรถจักรยานยนต์
+   - จำนวนรถแต่ละประเภท
+   - จำนวนรถรวมทั้งหมด
 
-ยังคงใช้:
+2. Export Excel เพิ่ม Sheet:
+   - Summary
+   - Detail
+
+3. Clean UI:
+   - เอาข้อความ “Hover ที่แท่งกราฟ...” ออก
+   - เอาข้อความ “Hybrid Breakdown Card” ออก
+   - เอาการแสดงผล Trend/Sparkline ใน KPI ออกก่อน
+
+ยังคงไว้:
+- Stacked Bar + Trend Line ในกราฟหลัก
+- Hybrid Breakdown Card แบบไม่แสดงคำอธิบาย
+- Animation / Hover effect
+- Export PDF ภาษาไทยผ่าน Browser Print
 - Replace All import mode
-- Stable PDF Export ผ่าน Browser Print
-- Export Excel
-- Auto refresh 30 วินาที
-
-## Run
-
-```bash
-pip install -r requirements.txt
-uvicorn app:app --reload
-```
-
-## URLs
-- `/admin`
-- `/dashboard`
