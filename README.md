@@ -1,34 +1,32 @@
-# Vehicle Dashboard v5 Hybrid SQLite Cache
+# Vehicle Dashboard v6 GitHub JSON DB
 
-Hybrid Mode: SQLite + Persistent Disk + Cache + Performance PRAGMA
+ใช้ GitHub `data.json` เป็นฐานข้อมูลแทน SQLite เพื่อให้ข้อมูลไม่หายบน Render Free
 
-## เพิ่มอะไรบ้าง
-- SQLite path ผ่าน `SQLITE_DB_PATH`
-- ใช้ `/var/data/vehicle_dashboard.db` สำหรับ Render Persistent Disk
-- WAL mode เพื่อ performance ดีขึ้น
-- Dashboard API cache TTL 20 วินาที
-- Import แล้ว clear cache อัตโนมัติ
-- `/api/health` สำหรับเช็ค DB path และจำนวน records
-- `/api/cache/clear` สำหรับ clear cache เอง
+## ENV บน Render
 
-## สำคัญ
-ถ้าใช้ Render แล้วต้องการให้ข้อมูลไม่หาย ต้องใช้ Persistent Disk หรือแผนที่รองรับ Disk
-
-## Local Run
-```bash
-pip install -r requirements.txt
-uvicorn app:app --reload
+```text
+ADMIN_TOKEN=รหัสหน้า admin
+GITHUB_TOKEN=token ใหม่จาก GitHub
+GITHUB_REPO=pohkla/vehicle-dashboard-data
+GITHUB_FILE=data.json
+GITHUB_BRANCH=main
+CACHE_TTL_SECONDS=20
 ```
 
-## URLs
-- `/admin`
-- `/dashboard`
-- `/api/health`
+## data.json เริ่มต้น
 
-## Environment Variables
+```json
+{
+  "version": 1,
+  "updated_at": null,
+  "daily_records": [],
+  "weekly_summaries": []
+}
+```
+
+## Test
+
 ```text
-ADMIN_TOKEN=your-secret-token
-DATA_DIR=/var/data
-SQLITE_DB_PATH=/var/data/vehicle_dashboard.db
-CACHE_TTL_SECONDS=20
+/api/github/test
+/api/health
 ```

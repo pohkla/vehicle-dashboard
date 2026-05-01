@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import os
-import sqlite3
+import json
+import base64
 import time
+import urllib.request
+import urllib.error
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -10,79 +13,77 @@ from typing import Any
 from fastapi import FastAPI, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-DATA_DIR = Path(os.getenv("DATA_DIR", "/var/data"))
-if not DATA_DIR.exists():
-    DATA_DIR = Path(".")
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-DB_PATH = Path(os.getenv("SQLITE_DB_PATH", str(DATA_DIR / "vehicle_dashboard.db")))
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "change-this-token")
-
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+GITHUB_REPO = os.getenv("GITHUB_REPO", "")
+GITHUB_FILE = os.getenv("GITHUB_FILE", "data.json")
+GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-app = FastAPI(title="Vehicle Dashboard v5 Hybrid SQLite Cache")
+app = FastAPI(title="Vehicle Dashboard v6 GitHub JSON DB")
 
 
-def connect_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA temp_store=MEMORY")
-    conn.execute("PRAGMA cache_size=-20000")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+def github_enabled() -> bool:
+    return bool(GITHUB_TOKEN and GITHUB_REPO and GITHUB_FILE)
 
 
-def init_db() -> None:
-    with connect_db() as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS reports (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                raw_text TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS daily_records (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                report_id INTEGER NOT NULL,
-                date_text TEXT NOT NULL,
-                iso_date TEXT NOT NULL,
-                vehicle_type TEXT NOT NULL,
-                vehicle_title TEXT NOT NULL,
-                icon TEXT NOT NULL,
-                company TEXT,
-                item TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS weekly_summaries (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                period_key TEXT NOT NULL UNIQUE,
-                car_amount INTEGER NOT NULL DEFAULT 0,
-                motorcycle_amount INTEGER NOT NULL DEFAULT 0,
-                total_amount INTEGER NOT NULL DEFAULT 0,
-                updated_at TEXT NOT NULL
-            )
-            """
-        )
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_records_iso_date ON daily_records(iso_date)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_records_vehicle_type ON daily_records(vehicle_type)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_records_item ON daily_records(item)")
-        conn.commit()
+def github_api_url() -> str:
+    return f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FILE}"
 
 
-@app.on_event("startup")
-def startup() -> None:
-    init_db()
+def github_headers() -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "vehicle-dashboard",
+    }
+
+
+def github_request(method: str, url: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    data = None
+    if payload is not None:
+        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers=github_headers(), method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as res:
+            body = res.read().decode("utf-8")
+            return json.loads(body) if body else {}
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="ignore")
+        raise HTTPException(status_code=500, detail=f"GitHub API error {e.code}: {detail}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"GitHub connection error: {str(e)}")
+
+
+def empty_store() -> dict[str, Any]:
+    return {"version": 1, "updated_at": None, "daily_records": [], "weekly_summaries": []}
+
+
+def read_github_store() -> tuple[dict[str, Any], str | None]:
+    if not github_enabled():
+        raise HTTPException(status_code=500, detail="ยังไม่ได้ตั้งค่า GITHUB_TOKEN / GITHUB_REPO / GITHUB_FILE")
+    url = github_api_url() + f"?ref={GITHUB_BRANCH}"
+    try:
+        res = github_request("GET", url)
+    except HTTPException as e:
+        if "GitHub API error 404" in str(e.detail):
+            return empty_store(), None
+        raise
+    content = base64.b64decode(res.get("content", "")).decode("utf-8")
+    data = json.loads(content) if content.strip() else empty_store()
+    data.setdefault("daily_records", [])
+    data.setdefault("weekly_summaries", [])
+    return data, res.get("sha")
+
+
+def write_github_store(data: dict[str, Any], sha: str | None, message: str) -> None:
+    content = base64.b64encode(json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")).decode("utf-8")
+    payload: dict[str, Any] = {"message": message, "content": content, "branch": GITHUB_BRANCH}
+    if sha:
+        payload["sha"] = sha
+    github_request("PUT", github_api_url(), payload)
 
 
 def make_cache_key(start: str | None, end: str | None, q: str | None) -> str:
@@ -108,6 +109,10 @@ def set_cached_dashboard(key: str, data: dict[str, Any]) -> None:
     DASHBOARD_CACHE["data"] = data
     DASHBOARD_CACHE["created_at"] = time.time()
 
+
+@app.on_event("startup")
+def startup() -> None:
+    pass
 
 
 def only_number(value: str) -> float:
@@ -231,187 +236,97 @@ def parse_report(raw_text: str) -> dict[str, Any]:
 
 
 def save_import_replace_all(raw_text: str) -> dict[str, int]:
-    """
-    Replace All Mode:
-    1. Parse imported rows
-    2. Clear all existing dashboard data from daily_records and weekly_summaries
-    3. Insert only the newest imported data
-
-    This is best when the uploaded text file represents the latest source of truth.
-    Result: dashboard always equals the latest uploaded file, never accumulates old data.
-    """
     parsed = parse_report(raw_text)
     rows = parsed["rows"]
     weekly_summaries = parsed["weeklySummaries"]
-
     if not rows:
         raise HTTPException(status_code=400, detail="อ่านข้อมูลไม่สำเร็จ: ไม่พบรายการรายวัน")
 
     now = datetime.utcnow().isoformat()
     imported_dates = sorted({row["isoDate"] for row in rows if row["isoDate"]})
+    store, sha = read_github_store()
+    old_record_count = len(store.get("daily_records", []))
+    old_summary_count = len(store.get("weekly_summaries", []))
 
-    with connect_db() as conn:
-        cur = conn.execute(
-            "INSERT INTO reports (raw_text, created_at) VALUES (?, ?)",
-            (raw_text, now),
-        )
-        report_id = int(cur.lastrowid)
+    records = []
+    for row in rows:
+        records.append({
+            "date_text": row["date"],
+            "iso_date": row["isoDate"],
+            "vehicle_type": row["vehicleType"],
+            "vehicle_title": row["vehicleTitle"],
+            "icon": row["icon"],
+            "company": row["company"],
+            "item": row["item"],
+            "created_at": now,
+        })
 
-        deleted_records = conn.execute("DELETE FROM daily_records").rowcount
-        deleted_summaries = conn.execute("DELETE FROM weekly_summaries").rowcount
+    summaries = []
+    for period, summary in weekly_summaries.items():
+        summaries.append({
+            "period_key": period,
+            "car_amount": summary["car"],
+            "motorcycle_amount": summary["motorcycle"],
+            "total_amount": summary["total"],
+            "updated_at": now,
+        })
 
-        inserted = 0
-        for row in rows:
-            conn.execute(
-                """
-                INSERT INTO daily_records
-                (report_id, date_text, iso_date, vehicle_type, vehicle_title, icon, company, item, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    report_id,
-                    row["date"],
-                    row["isoDate"],
-                    row["vehicleType"],
-                    row["vehicleTitle"],
-                    row["icon"],
-                    row["company"],
-                    row["item"],
-                    now,
-                ),
-            )
-            inserted += 1
-
-        replaced_summaries = 0
-        for period, summary in weekly_summaries.items():
-            conn.execute(
-                """
-                INSERT INTO weekly_summaries
-                (period_key, car_amount, motorcycle_amount, total_amount, updated_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    period,
-                    summary["car"],
-                    summary["motorcycle"],
-                    summary["total"],
-                    now,
-                ),
-            )
-            replaced_summaries += 1
-
-        conn.commit()
-
+    new_store = {"version": 1, "updated_at": now, "daily_records": records, "weekly_summaries": summaries}
+    write_github_store(new_store, sha, f"update vehicle dashboard data {now}")
     clear_dashboard_cache()
 
     return {
-        "report_id": report_id,
+        "report_id": 0,
         "imported_dates": len(imported_dates),
-        "deleted_records": int(deleted_records or 0),
-        "deleted_summaries": int(deleted_summaries or 0),
-        "inserted": inserted,
-        "replaced_summaries": replaced_summaries,
+        "deleted_records": int(old_record_count or 0),
+        "deleted_summaries": int(old_summary_count or 0),
+        "inserted": len(records),
+        "replaced_summaries": len(summaries),
         "parsed_rows": len(rows),
         "duplicated": 0,
     }
 
 
-def get_money_totals_from_weekly_summaries() -> dict[str, int]:
-    with connect_db() as conn:
-        row = conn.execute(
-            """
-            SELECT
-                COALESCE(SUM(car_amount), 0) AS car,
-                COALESCE(SUM(motorcycle_amount), 0) AS motorcycle,
-                COALESCE(SUM(total_amount), 0) AS total
-            FROM weekly_summaries
-            """
-        ).fetchone()
-
-    return {
-        "car": int(row["car"] or 0),
-        "motorcycle": int(row["motorcycle"] or 0),
-        "total": int(row["total"] or 0),
-    }
+def get_money_totals_from_weekly_summaries(store: dict[str, Any]) -> dict[str, int]:
+    summaries = store.get("weekly_summaries", [])
+    car = sum(int(s.get("car_amount", 0) or 0) for s in summaries)
+    motorcycle = sum(int(s.get("motorcycle_amount", 0) or 0) for s in summaries)
+    total = sum(int(s.get("total_amount", 0) or 0) for s in summaries)
+    return {"car": car, "motorcycle": motorcycle, "total": total}
 
 
 def get_dashboard_data(start: str | None = None, end: str | None = None, q: str | None = None) -> dict[str, Any]:
-    where = []
-    params: list[Any] = []
+    store, _ = read_github_store()
+    all_rows = store.get("daily_records", [])
+    q_lower = (q or "").strip().lower()
 
-    if start:
-        where.append("iso_date >= ?")
-        params.append(start)
-    if end:
-        where.append("iso_date <= ?")
-        params.append(end)
-    if q:
-        where.append("(item LIKE ? OR company LIKE ? OR vehicle_title LIKE ? OR date_text LIKE ?)")
-        like = f"%{q}%"
-        params.extend([like, like, like, like])
-
-    where_sql = "WHERE " + " AND ".join(where) if where else ""
-
-    with connect_db() as conn:
-        rows = conn.execute(
-            f"""
-            SELECT date_text, iso_date, vehicle_type, vehicle_title, icon, company, item
-            FROM daily_records
-            {where_sql}
-            ORDER BY iso_date ASC, id ASC
-            """,
-            params,
-        ).fetchall()
-
-        total_row = conn.execute(
-            f"""
-            SELECT
-              SUM(CASE WHEN vehicle_type = 'motorcycle' THEN 1 ELSE 0 END) AS motorcycle,
-              SUM(CASE WHEN vehicle_type = 'pickup' THEN 1 ELSE 0 END) AS pickup,
-              SUM(CASE WHEN vehicle_type = 'sedan' THEN 1 ELSE 0 END) AS sedan,
-              COUNT(*) AS all_count
-            FROM daily_records
-            {where_sql}
-            """,
-            params,
-        ).fetchone()
-
-        range_row = conn.execute(
-            """
-            SELECT MIN(iso_date) AS min_date, MAX(iso_date) AS max_date
-            FROM daily_records
-            """
-        ).fetchone()
+    filtered_rows = []
+    for row in all_rows:
+        iso_date = row.get("iso_date", "")
+        if start and iso_date < start:
+            continue
+        if end and iso_date > end:
+            continue
+        if q_lower:
+            haystack = " ".join([row.get("item", ""), row.get("company", ""), row.get("vehicle_title", ""), row.get("date_text", "")]).lower()
+            if q_lower not in haystack:
+                continue
+        filtered_rows.append(row)
 
     days: dict[str, Any] = {}
-    for row in rows:
-        day_key = row["iso_date"]
+    for row in sorted(filtered_rows, key=lambda r: (r.get("iso_date", ""), r.get("item", ""))):
+        day_key = row.get("iso_date", "")
         if day_key not in days:
-            days[day_key] = {
-                "date": row["date_text"],
-                "isoDate": row["iso_date"],
-                "motorcycle": 0,
-                "pickup": 0,
-                "sedan": 0,
-                "groups": {},
-            }
-
+            days[day_key] = {"date": row.get("date_text", ""), "isoDate": row.get("iso_date", ""), "motorcycle": 0, "pickup": 0, "sedan": 0, "groups": {}}
         day = days[day_key]
-        vehicle_type = row["vehicle_type"]
-        company = row["company"] or ""
+        vehicle_type = row.get("vehicle_type", "")
+        company = row.get("company", "") or ""
         group_key = f"{vehicle_type}|{company}"
-
         if group_key not in day["groups"]:
-            day["groups"][group_key] = {
-                "key": vehicle_type,
-                "icon": row["icon"],
-                "title": row["vehicle_title"],
-                "company": company,
-                "items": [],
-            }
-
-        day["groups"][group_key]["items"].append(row["item"])
-        day[vehicle_type] += 1
+            day["groups"][group_key] = {"key": vehicle_type, "icon": row.get("icon", ""), "title": row.get("vehicle_title", ""), "company": company, "items": []}
+        day["groups"][group_key]["items"].append(row.get("item", ""))
+        if vehicle_type in ("motorcycle", "pickup", "sedan"):
+            day[vehicle_type] += 1
 
     daily_data = []
     for day in days.values():
@@ -422,23 +337,21 @@ def get_dashboard_data(start: str | None = None, end: str | None = None, q: str 
         day["groups"] = groups
         daily_data.append(day)
 
-    money_totals = get_money_totals_from_weekly_summaries()
+    motorcycle = sum(1 for r in filtered_rows if r.get("vehicle_type") == "motorcycle")
+    pickup = sum(1 for r in filtered_rows if r.get("vehicle_type") == "pickup")
+    sedan = sum(1 for r in filtered_rows if r.get("vehicle_type") == "sedan")
+    money_totals = get_money_totals_from_weekly_summaries(store)
+    iso_dates = [r.get("iso_date", "") for r in all_rows if r.get("iso_date")]
 
     return {
         "period": "📊 Dashboard ข้อมูลสะสมทั้งหมด",
         "amounts": money_totals,
         "dailyData": daily_data,
-        "totals": {
-            "motorcycle": int(total_row["motorcycle"] or 0),
-            "pickup": int(total_row["pickup"] or 0),
-            "sedan": int(total_row["sedan"] or 0),
-            "all": int(total_row["all_count"] or 0),
-        },
-        "dateRange": {
-            "start": range_row["min_date"] if range_row else None,
-            "end": range_row["max_date"] if range_row else None,
-        },
-        "recordCount": len(rows),
+        "totals": {"motorcycle": int(motorcycle or 0), "pickup": int(pickup or 0), "sedan": int(sedan or 0), "all": int((motorcycle or 0) + (pickup or 0) + (sedan or 0))},
+        "dateRange": {"start": min(iso_dates) if iso_dates else None, "end": max(iso_dates) if iso_dates else None},
+        "recordCount": len(filtered_rows),
+        "storage": "github_json",
+        "updated_at": store.get("updated_at"),
     }
 
 
@@ -607,15 +520,16 @@ def api_dashboard(
 
 @app.get("/api/health")
 def api_health() -> JSONResponse:
-    with connect_db() as conn:
-        daily_count = conn.execute("SELECT COUNT(*) AS c FROM daily_records").fetchone()["c"]
-        summary_count = conn.execute("SELECT COUNT(*) AS c FROM weekly_summaries").fetchone()["c"]
+    store, _ = read_github_store()
     return JSONResponse({
         "ok": True,
-        "db_path": str(DB_PATH),
-        "data_dir": str(DATA_DIR),
-        "daily_records": int(daily_count or 0),
-        "weekly_summaries": int(summary_count or 0),
+        "storage": "github_json",
+        "github_repo": GITHUB_REPO,
+        "github_file": GITHUB_FILE,
+        "github_branch": GITHUB_BRANCH,
+        "daily_records": len(store.get("daily_records", [])),
+        "weekly_summaries": len(store.get("weekly_summaries", [])),
+        "updated_at": store.get("updated_at"),
         "cache_ttl_seconds": CACHE_TTL_SECONDS,
         "cache_key": DASHBOARD_CACHE.get("key"),
     })
@@ -627,6 +541,21 @@ def api_cache_clear(token: str = Form(...)) -> JSONResponse:
         raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
     clear_dashboard_cache()
     return JSONResponse({"ok": True, "message": "cache cleared"})
+
+
+@app.get("/api/github/test")
+def api_github_test() -> JSONResponse:
+    store, sha = read_github_store()
+    return JSONResponse({
+        "ok": True,
+        "repo": GITHUB_REPO,
+        "file": GITHUB_FILE,
+        "branch": GITHUB_BRANCH,
+        "sha_exists": bool(sha),
+        "daily_records": len(store.get("daily_records", [])),
+        "weekly_summaries": len(store.get("weekly_summaries", [])),
+    })
+
 
 @app.get("/api/report/latest")
 def api_latest_report() -> JSONResponse:
