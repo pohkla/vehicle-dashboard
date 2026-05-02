@@ -1,33 +1,13 @@
-# Vehicle Dashboard v6.1 Company Chart
+# Vehicle Dashboard v6.2 Company KPI Hover
 
-เวอร์ชันพร้อม Deploy
+พร้อม Deploy
 
-## เปลี่ยนในเวอร์ชันนี้
-
-- ใช้ Storage แบบ GitHub JSON DB เหมือนเดิม
-- ปรับเฉพาะกราฟฝั่งซ้ายเป็น Stacked Bar แยกตามบริษัท:
-  - RVP = รถจักรยานยนต์
-  - ERGO = รถกระบะ + รถยนต์เก๋ง ที่อยู่บริษัท ERGO
-  - TPB = รถกระบะ + รถยนต์เก๋ง ที่อยู่บริษัท ไทยไพบูลย์ / TPB
-  - เส้นสีดำ = รวมทั้งหมดต่อวัน
+## เพิ่มใหม่
+- KPI Card ด้านบนเป็นข้อมูลบริษัท: RVP / ERGO / TPB / รวมทั้งหมด
+- แสดง % Share และ mini progress bar
+- Hover KPI แล้ว highlight กราฟบริษัทนั้น
+- กราฟซ้ายยังเป็น Stacked Bar แยกบริษัท + เส้นรวม
 - Hybrid Card ฝั่งขวาคงเดิม
-- Export PDF / Excel คงเดิม
-- Admin import เป็น Replace All ลง GitHub data.json
 
 ## ENV บน Render
-
-```text
-ADMIN_TOKEN=รหัสสำหรับหน้า admin
-GITHUB_TOKEN=token ใหม่จาก GitHub
-GITHUB_REPO=pohkla/vehicle-dashboard-data
-GITHUB_FILE=data.json
-GITHUB_BRANCH=main
-CACHE_TTL_SECONDS=20
-```
-
-## Test
-
-```text
-/api/github/test
-/api/health
-```
+ADMIN_TOKEN, GITHUB_TOKEN, GITHUB_REPO, GITHUB_FILE, GITHUB_BRANCH, CACHE_TTL_SECONDS
