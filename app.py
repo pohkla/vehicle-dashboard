@@ -21,7 +21,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-app = FastAPI(title="Vehicle Dashboard v6 GitHub JSON DB")
+app = FastAPI(title="Vehicle Dashboard v6.1 Company Chart")
 
 
 def github_enabled() -> bool:
@@ -447,7 +447,7 @@ DASHBOARD_HTML = """
 <section class="hero"><div class="hero-card"><div class="period-pill" id="period">📊 Dashboard ข้อมูลสะสมทั้งหมด</div><h1>Vehicle Cumulative Dashboard</h1><p>Dashboard Only สำหรับข้อมูลสะสมทั้งหมดจากฐานข้อมูล</p><div style="margin-top:18px"><span class="status-pill"><span class="dot"></span><span id="refreshStatus">Auto refresh ทุก 30 วิ</span></span></div></div><div class="total-card"><div class="label">ยอดรวมทั้งหมด</div><div class="amount" id="totalAmount">0</div><table class="summary-table"><tr><th>หมวด</th><th>ยอด</th></tr><tr><td>🚛 🚗 รถยนต์</td><td id="carAmount">0 บาท</td></tr><tr><td>🏍 รถจักรยานยนต์</td><td id="motorAmount">0 บาท</td></tr></table></div></section>
 <section class="toolbar"><h2>เลือกช่วงวันที่ Dashboard</h2><div class="filter-group"><input class="date-input" id="startDate" type="date"><input class="date-input" id="endDate" type="date"><button class="btn" id="applyBtn">แสดงช่วงวันที่</button><button class="btn btn2" id="resetBtn">ดูทั้งหมด</button></div></section>
 <section class="kpi-grid"><div class="kpi"><div class="icon">🏍</div><div class="value" id="motorCount">0</div><div class="title">รถจักรยานยนต์</div></div><div class="kpi"><div class="icon">🚛</div><div class="value" id="pickupCount">0</div><div class="title">รถกระบะ</div></div><div class="kpi"><div class="icon">🚗</div><div class="value" id="sedanCount">0</div><div class="title">รถยนต์เก๋ง</div></div><div class="kpi"><div class="icon">🚘</div><div class="value" id="allCount">0</div><div class="title">จำนวนรถรวมทั้งหมด</div></div></section>
-<section class="section-grid"><div class="panel"><h2>จำนวนรถรายวัน + แนวโน้มรวม</h2><div class="chart-wrap"><canvas id="dailyChart"></canvas></div></div><div class="hybrid-card"><div class="hybrid-head"><div><h2 style="margin:0">สัดส่วนประเภทรถ</h2></div><div><div class="hybrid-total" id="hybridTotal">0</div><div class="hybrid-label">คันทั้งหมด</div></div></div><div class="breakdown-list" id="breakdownList"></div></div></section>
+<section class="section-grid"><div class="panel"><h2>จำนวนรถรายวัน แยกตามบริษัท</h2><div class="chart-wrap"><canvas id="dailyChart"></canvas></div></div><div class="hybrid-card"><div class="hybrid-head"><div><h2 style="margin:0">สัดส่วนประเภทรถ</h2></div><div><div class="hybrid-total" id="hybridTotal">0</div><div class="hybrid-label">คันทั้งหมด</div></div></div><div class="breakdown-list" id="breakdownList"></div></div></section>
 <section class="toolbar"><h2>รายการแยกรายวัน</h2><div class="filter-group"><input class="search-input" id="searchBox" placeholder="ค้นหาทะเบียน / เลขกรมธรรม์ / บริษัท"><select class="date-select" id="dateFilter"><option value="all">ดูทั้งหมด</option></select><button class="btn" id="showDateBtn">แสดงวันที่เลือก</button><button class="btn btn2" id="showAllBtn">ดูทั้งหมด</button><button class="btn btnToggle active" id="detailModeBtn">📄 Detail</button><button class="btn btnToggle" id="compactModeBtn">⚡ Compact</button><button class="btn btnDark" id="exportPdfBtn">Export PDF</button><button class="btn btnDark" id="exportExcelBtn">Export Excel</button></div></section>
 <section class="daily-grid" id="cards"></section><div class="pagination"><button class="btn btn2" id="prevPageBtn">ก่อนหน้า</button><span class="page-info" id="pageInfo">Page 1</span><button class="btn btn2" id="nextPageBtn">ถัดไป</button></div><p class="status-pill" id="status">Loading...</p>
 </main>
@@ -455,7 +455,62 @@ DASHBOARD_HTML = """
 let report=null,allDays=[],filteredDays=[],viewDays=[],dailyChart=null;let currentPage=1,pageSize=8,viewMode='detail',activeSelected='all';const box=id=>document.getElementById(id);const money=n=>Math.round(n||0).toLocaleString('th-TH');function destroy(){if(dailyChart)dailyChart.destroy()}function setupRange(){const dates=allDays.map(d=>d.isoDate).filter(Boolean).sort();box('startDate').value=dates[0]||'';box('endDate').value=dates[dates.length-1]||''}function flattenRows(days){const rows=[];days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item}))));return rows}
 function animateNumber(el,target){const end=Number(target)||0;const start=Number((el.textContent||'0').replace(/,/g,''))||0;const duration=420;const t0=performance.now();function tick(now){const p=Math.min(1,(now-t0)/duration);const eased=1-Math.pow(1-p,3);el.textContent=money(start+(end-start)*eased);if(p<1)requestAnimationFrame(tick);else el.textContent=money(end)}requestAnimationFrame(tick)}
 function colorWithAlpha(hex,alpha){const map={'#2563eb':'37,99,235','#f97316':'249,115,22','#16a34a':'22,163,74','#111827':'17,24,39'};return `rgba(${map[hex]||'37,99,235'},${alpha})`}function applyChartHighlight(index){if(!dailyChart)return;const colors=['#2563eb','#f97316','#16a34a'];dailyChart.data.datasets.forEach((ds,di)=>{if(ds.type==='line'){ds.borderColor=index==null?'#111827':colorWithAlpha('#111827',.95);ds.backgroundColor=ds.borderColor;ds.pointBackgroundColor=ds.data.map((_,i)=>index==null||i===index?'#111827':colorWithAlpha('#111827',.18));return}ds.backgroundColor=ds.data.map((_,i)=>index==null||i===index?colors[di]:colorWithAlpha(colors[di],.18))});dailyChart.update('none')}
-function renderCharts(){destroy();const totalLine=filteredDays.map(d=>d.motorcycle+d.pickup+d.sedan);dailyChart=new Chart(box('dailyChart'),{type:'bar',data:{labels:filteredDays.map(d=>d.date.slice(0,5)),datasets:[{label:'🏍 รถจักรยานยนต์',data:filteredDays.map(d=>d.motorcycle),backgroundColor:'#2563eb',borderRadius:8,stack:'vehicle'},{label:'🚛 รถกระบะ',data:filteredDays.map(d=>d.pickup),backgroundColor:'#f97316',borderRadius:8,stack:'vehicle'},{label:'🚗 รถยนต์เก๋ง',data:filteredDays.map(d=>d.sedan),backgroundColor:'#16a34a',borderRadius:8,stack:'vehicle'},{type:'line',label:'📈 รวมทั้งหมด',data:totalLine,borderColor:'#111827',backgroundColor:'#111827',pointBackgroundColor:'#111827',borderWidth:3,pointRadius:4,pointHoverRadius:6,tension:.35,yAxisID:'y'}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},onHover:(event,elements)=>{if(elements&&elements.length){applyChartHighlight(elements[0].index)}else{applyChartHighlight(null)}},plugins:{legend:{position:'top',labels:{font:{family:'Prompt',weight:'700'},usePointStyle:true,boxWidth:10}},tooltip:{bodyFont:{family:'Prompt'},titleFont:{family:'Prompt',weight:'700'},callbacks:{afterBody:(items)=>{if(!items.length)return '';const i=items[0].dataIndex;return 'รวม: '+totalLine[i]+' คัน'}}}},scales:{x:{stacked:true,grid:{color:'rgba(15,23,42,.06)'},ticks:{font:{family:'Prompt'}}},y:{stacked:true,beginAtZero:true,grid:{color:'rgba(15,23,42,.08)'},ticks:{precision:0,font:{family:'Prompt'}}}}}});box('dailyChart').addEventListener('mouseleave',()=>applyChartHighlight(null))}
+function getCompanyData(){
+ return filteredDays.map(day=>{
+   let RVP=0, ERGO=0, TPB=0, UNKNOWN=0;
+   (day.groups||[]).forEach(g=>{
+     const company=(g.company||'').toLowerCase();
+     const count=(g.items&&g.items.length)?g.items.length:(g.count||0);
+     if(g.key==='motorcycle'){
+       RVP += count;
+     }else if(company.includes('ergo')){
+       ERGO += count;
+     }else if(company.includes('ไทยไพบูลย์') || company.includes('tpb')){
+       TPB += count;
+     }else{
+       UNKNOWN += count;
+     }
+   });
+   return {date:day.date,label:day.date.slice(0,5),RVP,ERGO,TPB,UNKNOWN,total:RVP+ERGO+TPB+UNKNOWN};
+ });
+}
+function renderCharts(){
+ destroy();
+ const companyData=getCompanyData();
+ const totalLine=companyData.map(d=>d.total);
+ const datasets=[
+   {label:'🔵 RVP',data:companyData.map(d=>d.RVP),backgroundColor:'#2563eb',borderRadius:8,stack:'company'},
+   {label:'🟠 ERGO',data:companyData.map(d=>d.ERGO),backgroundColor:'#f97316',borderRadius:8,stack:'company'},
+   {label:'🟢 TPB',data:companyData.map(d=>d.TPB),backgroundColor:'#16a34a',borderRadius:8,stack:'company'}
+ ];
+ if(companyData.some(d=>d.UNKNOWN>0)){
+   datasets.push({label:'⚪ ไม่ระบุบริษัท',data:companyData.map(d=>d.UNKNOWN),backgroundColor:'#94a3b8',borderRadius:8,stack:'company'});
+ }
+ datasets.push({type:'line',label:'⚫ รวมทั้งหมด',data:totalLine,borderColor:'#111827',backgroundColor:'#111827',pointBackgroundColor:'#111827',borderWidth:3,pointRadius:4,pointHoverRadius:6,tension:.35,yAxisID:'y'});
+ dailyChart=new Chart(box('dailyChart'),{
+   type:'bar',
+   data:{labels:companyData.map(d=>d.label),datasets},
+   options:{
+     responsive:true,
+     maintainAspectRatio:false,
+     interaction:{mode:'index',intersect:false},
+     onHover:(event,elements)=>{if(elements&&elements.length){applyChartHighlight(elements[0].index)}else{applyChartHighlight(null)}},
+     plugins:{
+       legend:{position:'top',labels:{font:{family:'Prompt',weight:'700'},usePointStyle:true,boxWidth:10}},
+       tooltip:{
+         bodyFont:{family:'Prompt'},
+         titleFont:{family:'Prompt',weight:'700'},
+         callbacks:{afterBody:(items)=>{if(!items.length)return '';const i=items[0].dataIndex;const d=companyData[i];return ['รวม: '+d.total+' คัน','RVP: '+d.RVP+' คัน','ERGO: '+d.ERGO+' คัน','TPB: '+d.TPB+' คัน'];}}
+       }
+     },
+     scales:{
+       x:{stacked:true,grid:{color:'rgba(15,23,42,.06)'},ticks:{font:{family:'Prompt'}}},
+       y:{stacked:true,beginAtZero:true,grid:{color:'rgba(15,23,42,.08)'},ticks:{precision:0,font:{family:'Prompt'}}}
+     }
+   }
+ });
+ box('dailyChart').addEventListener('mouseleave',()=>applyChartHighlight(null));
+}
 function renderBreakdown(motor,pickup,sedan,total){box('hybridTotal').textContent=money(total);const rows=[{icon:'🏍',label:'รถจักรยานยนต์',value:motor,cls:''},{icon:'🚛',label:'รถกระบะ',value:pickup,cls:'orange'},{icon:'🚗',label:'รถยนต์เก๋ง',value:sedan,cls:'green'}];box('breakdownList').innerHTML=rows.map(r=>{const pct=total?Math.round((r.value/total)*100):0;return `<div class="breakdown-row"><div class="break-left"><span>${r.icon}</span><span>${r.label}</span></div><div class="break-meta"><span>${money(r.value)}</span><span class="percent">${pct}%</span></div><div class="bar-track"><div class="bar-fill ${r.cls}" style="width:${pct}%"></div></div></div>`}).join('')}
 function render(selected='all'){const t=report.totals||{};const motor=t.motorcycle||0,pickup=t.pickup||0,sedan=t.sedan||0,total=t.all||0;box('period').textContent='📊 Dashboard ข้อมูลสะสมทั้งหมด';box('totalAmount').textContent=money(report.amounts.total);box('carAmount').textContent=money(report.amounts.car)+' บาท';box('motorAmount').textContent=money(report.amounts.motorcycle)+' บาท';animateNumber(box('motorCount'),motor);animateNumber(box('pickupCount'),pickup);animateNumber(box('sedanCount'),sedan);animateNumber(box('allCount'),total);box('dateFilter').innerHTML='<option value="all">ดูทั้งหมด</option>'+filteredDays.map(d=>`<option value="${d.date}">${d.date}</option>`).join('');renderCharts();renderBreakdown(motor,pickup,sedan,total);currentPage=1;renderCards(selected);box('status').textContent=`ข้อมูลสะสมทั้งหมด ${total} คัน • แสดง ${filteredDays.length}/${allDays.length} วัน`}
 function getCardList(selected='all'){const base=selected==='all'?filteredDays:filteredDays.filter(d=>d.date===selected);const q=box('searchBox').value.trim().toLowerCase();if(!q)return base;return base.map(day=>{const groups=day.groups.map(g=>{const items=g.items.filter(i=>(day.date+' '+g.title+' '+(g.company||'')+' '+i).toLowerCase().includes(q));return {...g,items,count:items.length}}).filter(g=>g.items.length);return {...day,groups,motorcycle:groups.filter(g=>g.key==='motorcycle').reduce((s,g)=>s+g.items.length,0),pickup:groups.filter(g=>g.key==='pickup').reduce((s,g)=>s+g.items.length,0),sedan:groups.filter(g=>g.key==='sedan').reduce((s,g)=>s+g.items.length,0)}}).filter(d=>d.groups.length)}
