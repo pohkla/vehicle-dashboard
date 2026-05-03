@@ -1,38 +1,32 @@
-# Vehicle Dashboard System - Company KPI Grid Ready
+# Vehicle Dashboard v6.4 Company Finance Grid
 
-## สิ่งที่แก้แล้ว
-- Company KPI Grid แสดง RVP / ERGO / TPB / รวม เสมอ แม้ไม่มีข้อมูล
-- แสดงจำนวนรถทั้งหมด, ยอดสุทธิรวม, ยอดเก็บจริงรวม, Share %
-- แสดงจำนวนรถแยกตามประเภทรถภายในแต่ละบริษัท
-- Backend aggregate แบบ cumulative จากข้อมูลทั้งหมด
-- รองรับ Excel หลาย Sheet, merge cell ด้วย forward fill, และ Text legacy
-- แก้ปัญหา Render `Directory 'static' does not exist` โดยใช้ path แบบ absolute และแนบโฟลเดอร์ static ในโปรเจกต์
+พร้อม Deploy
 
-## Deploy Render
-1. แตก zip แล้ว push ขึ้น GitHub
-2. Render > New > Web Service > เลือก repo
-3. ใช้ค่าใน `render.yaml` หรือกำหนดเอง:
-   - Build Command: `pip install -r requirements.txt`
-   - Start Command: `uvicorn app:app --host 0.0.0.0 --port $PORT`
-4. Environment variables สำหรับ GitHub JSON DB ถ้าต้องการ:
-   - `GITHUB_TOKEN` = token ที่มีสิทธิ์ write contents
-   - `GITHUB_REPO` = owner/repo
-   - `GITHUB_BRANCH` = main
-   - `GITHUB_FILE_PATH` = vehicle_data.json
+## แก้ตาม Requirement ล่าสุด
 
-## API
-- `GET /api/summary`
-- `GET /api/data`
-- `POST /api/import/preview`
-- `POST /api/import/save`
-- `DELETE /api/data`
+1. Company KPI Grid แสดงข้อมูลครบทุกบริษัท
+   - RVP
+   - ERGO
+   - TPB
+   - รวมทั้งหมด
 
-## Excel Headers ที่ต้องมี
-- วันที่
-- ประเภทรถ
-- บริษัท
-- ยอดเก็บจริง
+2. แต่ละบริษัทแสดง
+   - จำนวนรถทั้งหมด
+   - ยอดสุทธิ
+   - ยอดเก็บจริง
+   - จำนวนรถแยกตามชนิด: มอเตอร์ไซต์ / กระบะ / เก๋ง
+   - Share %
 
-แนะนำให้มีเพิ่ม:
-- ยอดสุทธิ
-- รหัส หรือ ทะเบียน
+3. สีบริษัท
+   - RVP = น้ำเงิน
+   - ERGO = แดง
+   - TPB = ฟ้า
+   - รวม = ดำ/เทาเข้ม
+
+4. รองรับ Excel Import และ Text Import เดิม
+   - Excel ใช้ยอดสุทธิและยอดเก็บจริงต่อรายการ
+   - Text เดิมยังใช้ได้ แต่ถ้า Text ไม่มียอดต่อบริษัท จะคำนวณเงินต่อบริษัทได้เท่าที่ข้อมูลมี
+
+## Deploy
+อัปโหลดไฟล์ทั้งหมดใน ZIP นี้ไปแทนของเดิมใน repo `vehicle-dashboard`
+แล้วกด Manual Deploy บน Render
