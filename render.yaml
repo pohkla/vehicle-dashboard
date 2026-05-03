@@ -6,11 +6,9 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: GITHUB_BRANCH
         value: main
-      - key: GITHUB_DB_PATH
-        value: data/vehicle-dashboard.json
-      - key: GITHUB_REPO
-        sync: false
-      - key: GITHUB_TOKEN
-        sync: false
+      - key: GITHUB_FILE_PATH
+        value: vehicle_data.json

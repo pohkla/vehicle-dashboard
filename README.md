@@ -1,27 +1,38 @@
-# Vehicle Dashboard System
+# Vehicle Dashboard System - Company KPI Grid Ready
 
-FastAPI + Static Dashboard พร้อม Company KPI Grid แบบ cumulative
+## สิ่งที่แก้แล้ว
+- Company KPI Grid แสดง RVP / ERGO / TPB / รวม เสมอ แม้ไม่มีข้อมูล
+- แสดงจำนวนรถทั้งหมด, ยอดสุทธิรวม, ยอดเก็บจริงรวม, Share %
+- แสดงจำนวนรถแยกตามประเภทรถภายในแต่ละบริษัท
+- Backend aggregate แบบ cumulative จากข้อมูลทั้งหมด
+- รองรับ Excel หลาย Sheet, merge cell ด้วย forward fill, และ Text legacy
+- แก้ปัญหา Render `Directory 'static' does not exist` โดยใช้ path แบบ absolute และแนบโฟลเดอร์ static ในโปรเจกต์
 
-## Features
-- Company Cards: RVP, ERGO, TPB, รวม
-- แสดงจำนวนรถ, ยอดสุทธิรวม, ยอดเก็บจริงรวม, ชนิดรถ, Share %
-- Excel Preview + Validation header
-- Text legacy import
-- Save แบบ Replace All ไปที่ GitHub JSON หรือ local `data.json`
+## Deploy Render
+1. แตก zip แล้ว push ขึ้น GitHub
+2. Render > New > Web Service > เลือก repo
+3. ใช้ค่าใน `render.yaml` หรือกำหนดเอง:
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `uvicorn app:app --host 0.0.0.0 --port $PORT`
+4. Environment variables สำหรับ GitHub JSON DB ถ้าต้องการ:
+   - `GITHUB_TOKEN` = token ที่มีสิทธิ์ write contents
+   - `GITHUB_REPO` = owner/repo
+   - `GITHUB_BRANCH` = main
+   - `GITHUB_FILE_PATH` = vehicle_data.json
 
-## Deploy on Render
-1. Push โฟลเดอร์นี้ขึ้น GitHub
-2. Render > New > Blueprint หรือ Web Service
-3. ตั้ง Environment Variables:
-   - `GITHUB_REPO=owner/repo`
-   - `GITHUB_TOKEN=github_pat_...` ต้องมีสิทธิ์ Contents Read/Write
-   - `GITHUB_BRANCH=main`
-   - `GITHUB_DB_PATH=data/vehicle-dashboard.json`
-4. Deploy
+## API
+- `GET /api/summary`
+- `GET /api/data`
+- `POST /api/import/preview`
+- `POST /api/import/save`
+- `DELETE /api/data`
 
-## Local Run
-```bash
-pip install -r requirements.txt
-uvicorn app:app --reload
-```
-เปิด `http://127.0.0.1:8000`
+## Excel Headers ที่ต้องมี
+- วันที่
+- ประเภทรถ
+- บริษัท
+- ยอดเก็บจริง
+
+แนะนำให้มีเพิ่ม:
+- ยอดสุทธิ
+- รหัส หรือ ทะเบียน
