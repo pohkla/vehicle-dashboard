@@ -1,33 +1,26 @@
-# Vehicle Dashboard v6.5 Excel Money Import Status
+# Vehicle Dashboard v6.6 Company Money Status Fix
 
 พร้อม Deploy
 
-## แก้ไขในเวอร์ชันนี้
+## แก้ไข
+1. แก้ยอดเงินใน Company Grid ไม่ขึ้น
+   - คำนวณยอดสุทธิ / ยอดเก็บจริงจาก daily_records โดยตรง
+   - รองรับ key ทั้ง `net_amount` / `netAmount`
+   - รองรับ key ทั้ง `collected_amount` / `collectedAmount`
 
-1. แก้ Excel Import ให้จับหัวคอลัมน์ยอดเงินได้แข็งขึ้น
-   - ยอดสุทธิ / สุทธิ / Net
-   - ยอดเก็บจริง / ยอดเก็บ / เก็บจริง / Collected
-   - normalize กรณีหัวคอลัมน์มีช่องว่าง/บรรทัดใหม่/อักขระไทยผิด
-
-2. Company KPI Grid แสดง
-   - จำนวนรถ
-   - ยอดสุทธิ
-   - ยอดเก็บจริง
-   - จำนวนรถแยกชนิด 🏍 🚛 🚗
-
-3. เพิ่มสถานะหลัง Upload / Import
-   - ประเภท Import
-   - จำนวนวันที่
-   - จำนวน record ที่บันทึก
+2. หลัง Upload มีสรุปผลนำเข้าชัดเจนขึ้น
    - สรุป RVP / ERGO / TPB / รวม
-   - รายงานว่าแต่ละ Sheet ถูก import หรือ skipped
+   - แสดงจำนวนรถ
+   - แสดงยอดสุทธิ
+   - แสดงยอดเก็บจริง
+   - แสดงจำนวนรถแยกชนิด
 
-4. ยังรองรับ
-   - Import Excel
-   - Import Text เดิม
-   - GitHub JSON DB
-   - Replace All mode
+3. เพิ่ม debug endpoint
+   - `/api/debug/company-summary`
+   - ใช้ตรวจว่าข้อมูลใน GitHub JSON มียอดเงินหรือไม่
 
-## Deploy
-อัปโหลดไฟล์ทั้งหมดใน ZIP นี้ไปแทนของเดิมใน repo `vehicle-dashboard`
-แล้วกด Manual Deploy บน Render
+## หลัง Deploy ให้ทดสอบ
+1. Upload Excel ใหม่ที่ `/admin`
+2. ดู status ใต้ปุ่ม upload
+3. เปิด `/api/debug/company-summary`
+4. เปิด `/dashboard`

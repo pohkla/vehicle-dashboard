@@ -23,7 +23,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-app = FastAPI(title="Vehicle Dashboard v6.5 Excel Money Import Status")
+app = FastAPI(title="Vehicle Dashboard v6.6 Company Money Status Fix")
 
 
 def github_enabled() -> bool:
@@ -571,6 +571,14 @@ def get_money_totals_from_weekly_summaries(store: dict[str, Any]) -> dict[str, A
 
 
 
+
+def get_row_amount(row: dict[str, Any], snake_key: str, camel_key: str) -> float:
+    value = row.get(snake_key)
+    if value in (None, ""):
+        value = row.get(camel_key)
+    return float(value or 0)
+
+
 def build_company_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     summary: dict[str, Any] = {
         "RVP": {"count": 0, "net": 0.0, "collected": 0.0, "vehicles": {"motorcycle": 0, "pickup": 0, "sedan": 0}},
@@ -580,15 +588,18 @@ def build_company_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
     for row in rows:
-        vehicle_type = row.get("vehicle_type", "")
+        vehicle_type = row.get("vehicle_type") or row.get("vehicleType") or ""
         company = row.get("company", "")
-        group = row.get("company_group") or map_company_group(vehicle_type, company)
+        group = row.get("company_group") or row.get("companyGroup") or map_company_group(vehicle_type, company)
         if group not in summary:
             group = "UNKNOWN"
 
+        net_amount = get_row_amount(row, "net_amount", "netAmount")
+        collected_amount = get_row_amount(row, "collected_amount", "collectedAmount")
+
         summary[group]["count"] += 1
-        summary[group]["net"] += float(row.get("net_amount", 0) or 0)
-        summary[group]["collected"] += float(row.get("collected_amount", 0) or 0)
+        summary[group]["net"] += net_amount
+        summary[group]["collected"] += collected_amount
         if vehicle_type in summary[group]["vehicles"]:
             summary[group]["vehicles"][vehicle_type] += 1
 
@@ -659,6 +670,8 @@ def get_dashboard_data(start: str | None = None, end: str | None = None, q: str 
     pickup = sum(1 for r in filtered_rows if r.get("vehicle_type") == "pickup")
     sedan = sum(1 for r in filtered_rows if r.get("vehicle_type") == "sedan")
     money_totals = get_money_totals_from_weekly_summaries(store)
+    actual_company_summary = build_company_summary(filtered_rows)
+    money_totals['company'] = {k: v.get('collected', 0) for k, v in actual_company_summary.items() if k != 'TOTAL'}
     iso_dates = [r.get("iso_date", "") for r in all_rows if r.get("iso_date")]
 
     return {
@@ -672,7 +685,7 @@ def get_dashboard_data(start: str | None = None, end: str | None = None, q: str 
         "updated_at": store.get("updated_at"),
         "companyAmounts": money_totals.get("company", {}),
         "importType": store.get("import_type", ""),
-        "companySummary": build_company_summary(filtered_rows),
+        "companySummary": actual_company_summary,
     }
 
 
@@ -686,7 +699,7 @@ ADMIN_HTML = """
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--cyan:#14b8a6;--line:#e5e7eb;--shadow:0 16px 40px rgba(15,23,42,.08)}
-*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.wrap{width:min(980px,94vw);margin:auto;padding:32px 0}.card{background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border-radius:28px;padding:26px;box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9)}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:28px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:34px}.hero p{margin:0;opacity:.9}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid var(--line)}textarea{width:100%;height:440px;border:1px solid var(--line);border-radius:18px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}input{padding:12px 14px;border:1px solid var(--line);border-radius:14px;font-family:Prompt,sans-serif}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 12px 22px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn2{background:#eff6ff;color:#1d4ed8;box-shadow:none}.status{margin-top:12px;color:var(--muted);white-space:pre-wrap}.hint{padding:12px 14px;background:#eff6ff;color:#1d4ed8;border-radius:14px;margin:12px 0;font-size:14px}.danger{background:#fff7ed;color:#9a3412}
+*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.wrap{width:min(980px,94vw);margin:auto;padding:32px 0}.card{background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border-radius:28px;padding:26px;box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9)}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:28px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:34px}.hero p{margin:0;opacity:.9}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid var(--line)}textarea{width:100%;height:440px;border:1px solid var(--line);border-radius:18px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}input{padding:12px 14px;border:1px solid var(--line);border-radius:14px;font-family:Prompt,sans-serif}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 12px 22px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn2{background:#eff6ff;color:#1d4ed8;box-shadow:none}.status{margin-top:16px;color:#172033;white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:18px;padding:14px;line-height:1.65;font-weight:600}.hint{padding:12px 14px;background:#eff6ff;color:#1d4ed8;border-radius:14px;margin:12px 0;font-size:14px}.danger{background:#fff7ed;color:#9a3412}
 </style>
 </head>
 <body>
@@ -864,6 +877,11 @@ function setCompanyKPI(){
  const cs=report.companySummary||{};
  const get=(k)=>cs[k]||{count:0,net:0,collected:0,vehicles:{motorcycle:0,pickup:0,sedan:0}};
  const R=get('RVP'), E=get('ERGO'), T=get('TPB'), A=get('TOTAL');
+ const companyAmounts=(report.amounts&&report.amounts.company)||{};
+ if((R.collected||0)===0 && companyAmounts.RVP){R.collected=companyAmounts.RVP}
+ if((E.collected||0)===0 && companyAmounts.ERGO){E.collected=companyAmounts.ERGO}
+ if((T.collected||0)===0 && companyAmounts.TPB){T.collected=companyAmounts.TPB}
+ if((A.collected||0)===0){A.collected=(R.collected||0)+(E.collected||0)+(T.collected||0)}
  const total=A.count||0;
  const pct=(v)=>total?Math.round((v/total)*100):0;
  const setText=(id,val)=>{if(box(id))box(id).textContent=val};
@@ -1044,7 +1062,7 @@ def api_health() -> JSONResponse:
         "updated_at": store.get("updated_at"),
         "companyAmounts": money_totals.get("company", {}),
         "importType": store.get("import_type", ""),
-        "companySummary": build_company_summary(filtered_rows),
+        "companySummary": actual_company_summary,
         "cache_ttl_seconds": CACHE_TTL_SECONDS,
         "cache_key": DASHBOARD_CACHE.get("key"),
     })
@@ -1071,6 +1089,21 @@ def api_github_test() -> JSONResponse:
         "weekly_summaries": len(store.get("weekly_summaries", [])),
     })
 
+
+
+
+@app.get("/api/debug/company-summary")
+def api_debug_company_summary() -> JSONResponse:
+    store, _ = read_github_store()
+    rows = store.get("daily_records", [])
+    return JSONResponse({
+        "ok": True,
+        "import_type": store.get("import_type"),
+        "updated_at": store.get("updated_at"),
+        "records": len(rows),
+        "companySummary": build_company_summary(rows),
+        "sample": rows[:3],
+    })
 
 @app.get("/api/report/latest")
 def api_latest_report() -> JSONResponse:
