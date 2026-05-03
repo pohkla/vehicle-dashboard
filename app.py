@@ -7,7 +7,7 @@ import time
 import urllib.request
 import urllib.error
 import openpyxl
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from pathlib import Path
 from typing import Any
 from io import BytesIO
@@ -24,7 +24,7 @@ CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
 PROJECT_NAME = "vehicle-dashboard"
-app = FastAPI(title="Vehicle Dashboard v6.8 Company Field Import Fix")
+app = FastAPI(title="Vehicle Dashboard v6.9 Excel Real File Import Fix")
 
 
 def github_enabled() -> bool:
@@ -295,19 +295,45 @@ def parse_excel_date(value: Any) -> tuple[str, str]:
     if value is None or value == "":
         return "", ""
 
+    def format_date_obj(dt: date) -> tuple[str, str]:
+        # ถ้า Excel เก็บปีเป็น พ.ศ. เช่น 2569 ให้แปลงเป็น ค.ศ. สำหรับ isoDate
+        display_year = dt.year if dt.year > 2400 else dt.year + 543
+        iso_year = dt.year - 543 if dt.year > 2400 else dt.year
+        return f"{dt.day:02d}/{dt.month:02d}/{display_year}", f"{iso_year:04d}-{dt.month:02d}-{dt.day:02d}"
+
     if isinstance(value, datetime):
-        y = value.year + 543 if value.year < 2400 else value.year
-        return f"{value.day:02d}/{value.month:02d}/{y}", f"{value.year:04d}-{value.month:02d}-{value.day:02d}"
+        return format_date_obj(value.date())
 
     if isinstance(value, date):
-        y = value.year + 543 if value.year < 2400 else value.year
-        return f"{value.day:02d}/{value.month:02d}/{y}", f"{value.year:04d}-{value.month:02d}-{value.day:02d}"
+        return format_date_obj(value)
+
+    # รองรับ Excel serial date ทั้งแบบ ค.ศ. และกรณีต้นทางกรอกปี พ.ศ.
+    # ตัวอย่างไฟล์จริง: 20/04/2569 ถูกอ่านเป็น 244459
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        serial = int(value)
+        if 20000 <= serial <= 300000:
+            try:
+                dt = date(1899, 12, 30) + timedelta(days=serial)
+                return format_date_obj(dt)
+            except Exception:
+                pass
 
     text = str(value).strip()
     if not text:
         return "", ""
 
     text = text.replace("-", "/").replace(".", "/")
+
+    # รองรับเลขวันที่แบบ 25690420 หรือ 20260420
+    compact = text.replace("/", "").strip()
+    if compact.isdigit() and len(compact) == 8:
+        y = int(compact[:4])
+        m = int(compact[4:6])
+        d = int(compact[6:8])
+        iso_y = y - 543 if y > 2400 else y
+        display_y = y if y > 2400 else y + 543
+        return f"{d:02d}/{m:02d}/{display_y}", f"{iso_y:04d}-{m:02d}-{d:02d}"
+
     parts = [p for p in text.split("/") if p]
     if len(parts) == 3 and all(p.isdigit() for p in parts):
         d, m, y = [int(p) for p in parts]
