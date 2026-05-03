@@ -1,20 +1,16 @@
 services:
   - type: web
-    name: vehicle-weekly-dashboard
+    name: vehicle-dashboard-system
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: ADMIN_TOKEN
-        value: change-this-token
-      - key: GITHUB_TOKEN
-        sync: false
-      - key: GITHUB_REPO
-        value: pohkla/vehicle-dashboard-data
-      - key: GITHUB_FILE
-        value: data.json
       - key: GITHUB_BRANCH
         value: main
-      - key: CACHE_TTL_SECONDS
-        value: 20
+      - key: GITHUB_DB_PATH
+        value: data/vehicle-dashboard.json
+      - key: GITHUB_REPO
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
