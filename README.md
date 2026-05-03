@@ -1,13 +1,41 @@
-# Vehicle Dashboard v6.2 Company KPI Hover
+# Vehicle Dashboard v6.3 Excel Import + Company Money
 
 พร้อม Deploy
 
 ## เพิ่มใหม่
-- KPI Card ด้านบนเป็นข้อมูลบริษัท: RVP / ERGO / TPB / รวมทั้งหมด
-- แสดง % Share และ mini progress bar
-- Hover KPI แล้ว highlight กราฟบริษัทนั้น
-- กราฟซ้ายยังเป็น Stacked Bar แยกบริษัท + เส้นรวม
-- Hybrid Card ฝั่งขวาคงเดิม
+1. Import Excel (.xlsx/.xls)
+   - ยัง Import Text เดิมได้เหมือนเดิม
+   - ถ้าเลือกไฟล์ Excel ระบบจะอ่านไฟล์ Excel ก่อน
+   - ถ้าเลือกไฟล์ .txt ระบบจะอ่าน Text
+   - ถ้าไม่เลือกไฟล์ ระบบจะใช้ข้อความใน textarea
+
+2. Excel Parser
+   - ข้ามชีตที่ไม่มี header ถูกต้องอัตโนมัติ เช่น ชีต Dropdown
+   - ตรวจ header ก่อนใช้งาน
+   - รองรับ merge cell โดย fill down วันที่ / ประเภทรถ / บริษัท
+   - รวมข้อมูลทุกชีตที่เป็น data sheet
+   - รองรับ columns: วันที่, ประเภทรถ, บริษัท, รหัส, ยอดสุทธิ, ยอดเก็บจริง
+
+3. Company KPI + Money
+   - RVP = รถจักรยานยนต์
+   - ERGO = รถกระบะ + รถเก๋ง ของ ERGO
+   - TPB = รถกระบะ + รถเก๋ง ของไทยไพบูลย์ TPB
+   - รวมยอดเงินต่อบริษัทจากยอดเก็บจริง
+
+4. Storage
+   - ใช้ GitHub JSON DB เหมือนเดิม
+   - Replace All ทุกครั้งที่ Import
 
 ## ENV บน Render
-ADMIN_TOKEN, GITHUB_TOKEN, GITHUB_REPO, GITHUB_FILE, GITHUB_BRANCH, CACHE_TTL_SECONDS
+```text
+ADMIN_TOKEN=...
+GITHUB_TOKEN=...
+GITHUB_REPO=pohkla/vehicle-dashboard-data
+GITHUB_FILE=data.json
+GITHUB_BRANCH=main
+CACHE_TTL_SECONDS=20
+```
+
+## Deploy
+อัปโหลดไฟล์ทั้งหมดใน ZIP นี้ไปแทนของเดิมใน repo `vehicle-dashboard`
+แล้วกด Manual Deploy บน Render

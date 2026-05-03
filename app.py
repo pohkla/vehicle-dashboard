@@ -6,11 +6,13 @@ import base64
 import time
 import urllib.request
 import urllib.error
-from datetime import datetime
+import openpyxl
+from datetime import datetime, date
 from pathlib import Path
 from typing import Any
+from io import BytesIO
 
-from fastapi import FastAPI, Form, HTTPException, Query
+from fastapi import FastAPI, Form, HTTPException, Query, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "change-this-token")
@@ -21,7 +23,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-app = FastAPI(title="Vehicle Dashboard v6.2 Company KPI Hover")
+app = FastAPI(title="Vehicle Dashboard v6.3 Excel Import")
 
 
 def github_enabled() -> bool:
@@ -235,48 +237,256 @@ def parse_report(raw_text: str) -> dict[str, Any]:
     }
 
 
-def save_import_replace_all(raw_text: str) -> dict[str, int]:
-    parsed = parse_report(raw_text)
-    rows = parsed["rows"]
-    weekly_summaries = parsed["weeklySummaries"]
+def normalize_header(value: Any) -> str:
+    return str(value or "").strip().replace("\n", "").replace(" ", "")
+
+
+def find_header_row(ws) -> tuple[int | None, dict[str, int]]:
+    required_aliases = {
+        "date": ["วันที่", "วันที"],
+        "vehicle_type": ["ประเภทรถ", "ประเภท"],
+        "company": ["บริษัท", "บริษํท"],
+        "item": ["รหัส", "เลขกรมธรรม์", "รายการ"],
+        "net_amount": ["ยอดสุทธิ"],
+        "collected_amount": ["ยอดเก็บจริง", "ยอดเก็บ"],
+    }
+
+    for row_idx in range(1, min(ws.max_row, 20) + 1):
+        header_map: dict[str, int] = {}
+        normalized = {
+            normalize_header(ws.cell(row_idx, col_idx).value): col_idx
+            for col_idx in range(1, ws.max_column + 1)
+        }
+
+        for key, aliases in required_aliases.items():
+            for alias in aliases:
+                alias_norm = normalize_header(alias)
+                if alias_norm in normalized:
+                    header_map[key] = normalized[alias_norm]
+                    break
+
+        must_have = ["date", "vehicle_type", "company", "item", "collected_amount"]
+        if all(key in header_map for key in must_have):
+            return row_idx, header_map
+
+    return None, {}
+
+
+def parse_excel_date(value: Any) -> tuple[str, str]:
+    if value is None or value == "":
+        return "", ""
+
+    if isinstance(value, datetime):
+        y = value.year + 543 if value.year < 2400 else value.year
+        return f"{value.day:02d}/{value.month:02d}/{y}", f"{value.year:04d}-{value.month:02d}-{value.day:02d}"
+
+    if isinstance(value, date):
+        y = value.year + 543 if value.year < 2400 else value.year
+        return f"{value.day:02d}/{value.month:02d}/{y}", f"{value.year:04d}-{value.month:02d}-{value.day:02d}"
+
+    text = str(value).strip()
+    if not text:
+        return "", ""
+
+    text = text.replace("-", "/").replace(".", "/")
+    parts = [p for p in text.split("/") if p]
+    if len(parts) == 3 and all(p.isdigit() for p in parts):
+        d, m, y = [int(p) for p in parts]
+        iso_y = y - 543 if y > 2400 else y
+        display_y = y if y > 2400 else y + 543
+        return f"{d:02d}/{m:02d}/{display_y}", f"{iso_y:04d}-{m:02d}-{d:02d}"
+
+    return text, ""
+
+
+def to_float(value: Any) -> float:
+    if value is None or value == "":
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).replace(",", "").replace("บาท", "").strip()
+    try:
+        return float(text)
+    except Exception:
+        return only_number(text)
+
+
+def map_excel_vehicle_type(value: Any) -> dict[str, str] | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if "มอเตอร์" in text or "จักรยานยนต์" in text:
+        return {"key": "motorcycle", "icon": "🏍", "title": "รถจักรยานยนต์"}
+    if "กระบะ" in text:
+        return {"key": "pickup", "icon": "🚛", "title": "รถกระบะ"}
+    if "เก๋ง" in text or "รถยนต์" in text:
+        return {"key": "sedan", "icon": "🚗", "title": "รถยนต์เก๋ง"}
+    return {"key": "unknown", "icon": "❔", "title": text}
+
+
+def map_company_group(vehicle_type: str, company: str) -> str:
+    c = (company or "").lower()
+    if vehicle_type == "motorcycle":
+        return "RVP"
+    if "ergo" in c:
+        return "ERGO"
+    if "ไทยไพบูลย์" in c or "tpb" in c:
+        return "TPB"
+    return "UNKNOWN"
+
+
+def parse_excel_report(file_bytes: bytes) -> dict[str, Any]:
+    wb = openpyxl.load_workbook(BytesIO(file_bytes), data_only=True)
+    rows: list[dict[str, Any]] = []
+    sheet_stats: list[dict[str, Any]] = []
+
+    for ws in wb.worksheets:
+        header_row, col = find_header_row(ws)
+        if not header_row:
+            sheet_stats.append({"sheet": ws.title, "status": "skipped", "reason": "ไม่พบ header ที่จำเป็น"})
+            continue
+
+        last_date_text = ""
+        last_iso_date = ""
+        last_vehicle_text = ""
+        last_company = ""
+        inserted = 0
+
+        for r in range(header_row + 1, ws.max_row + 1):
+            raw_date = ws.cell(r, col["date"]).value
+            raw_vehicle = ws.cell(r, col["vehicle_type"]).value
+            raw_company = ws.cell(r, col["company"]).value
+            raw_item = ws.cell(r, col["item"]).value
+            raw_net = ws.cell(r, col.get("net_amount", col["collected_amount"])).value
+            raw_collected = ws.cell(r, col["collected_amount"]).value
+
+            date_text, iso_date = parse_excel_date(raw_date)
+            if date_text and iso_date:
+                last_date_text = date_text
+                last_iso_date = iso_date
+            else:
+                date_text = last_date_text
+                iso_date = last_iso_date
+
+            vehicle_text = str(raw_vehicle).strip() if raw_vehicle not in (None, "") else last_vehicle_text
+            if raw_vehicle not in (None, ""):
+                last_vehicle_text = vehicle_text
+
+            company = str(raw_company).strip() if raw_company not in (None, "") else last_company
+            if raw_company not in (None, ""):
+                last_company = company
+
+            item = str(raw_item or "").strip().replace("_", " ")
+            if not item or not iso_date or not vehicle_text:
+                continue
+
+            meta = map_excel_vehicle_type(vehicle_text)
+            if not meta:
+                continue
+
+            net_amount = to_float(raw_net)
+            collected_amount = to_float(raw_collected)
+
+            rows.append({
+                "date": date_text,
+                "isoDate": iso_date,
+                "vehicleType": meta["key"],
+                "vehicleTitle": meta["title"],
+                "icon": meta["icon"],
+                "company": company,
+                "companyGroup": map_company_group(meta["key"], company),
+                "item": item,
+                "netAmount": net_amount,
+                "collectedAmount": collected_amount,
+                "sourceSheet": ws.title,
+            })
+            inserted += 1
+
+        sheet_stats.append({"sheet": ws.title, "status": "imported", "rows": inserted})
+
     if not rows:
-        raise HTTPException(status_code=400, detail="อ่านข้อมูลไม่สำเร็จ: ไม่พบรายการรายวัน")
+        raise HTTPException(status_code=400, detail="อ่าน Excel ไม่สำเร็จ: ไม่พบชีตที่มี header และข้อมูลที่ใช้งานได้")
+
+    return {"rows": rows, "sheetStats": sheet_stats}
+
+
+def make_summaries_from_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    now = datetime.utcnow().isoformat()
+    vehicle_summary = {"car": 0.0, "motorcycle": 0.0, "total": 0.0}
+    company_summary = {"RVP": 0.0, "ERGO": 0.0, "TPB": 0.0, "UNKNOWN": 0.0}
+
+    for row in rows:
+        amount = float(row.get("collectedAmount", 0) or 0)
+        vehicle_type = row.get("vehicleType", "")
+        company_group = row.get("companyGroup") or map_company_group(vehicle_type, row.get("company", ""))
+
+        if vehicle_type == "motorcycle":
+            vehicle_summary["motorcycle"] += amount
+        elif vehicle_type in ("pickup", "sedan"):
+            vehicle_summary["car"] += amount
+        vehicle_summary["total"] += amount
+        company_summary.setdefault(company_group, 0.0)
+        company_summary[company_group] += amount
+
+    return [
+        {
+            "period_key": "EXCEL_IMPORT_TOTAL",
+            "car_amount": round(vehicle_summary["car"], 2),
+            "motorcycle_amount": round(vehicle_summary["motorcycle"], 2),
+            "total_amount": round(vehicle_summary["total"], 2),
+            "company_amounts": {k: round(v, 2) for k, v in company_summary.items()},
+            "updated_at": now,
+        }
+    ]
+
+
+
+
+def save_records_replace_all(rows: list[dict[str, Any]], summaries: list[dict[str, Any]], import_type: str, sheet_stats: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    if not rows:
+        raise HTTPException(status_code=400, detail="ไม่พบรายการสำหรับนำเข้า")
 
     now = datetime.utcnow().isoformat()
-    imported_dates = sorted({row["isoDate"] for row in rows if row["isoDate"]})
+    imported_dates = sorted({row["isoDate"] for row in rows if row.get("isoDate")})
     store, sha = read_github_store()
+
     old_record_count = len(store.get("daily_records", []))
     old_summary_count = len(store.get("weekly_summaries", []))
 
     records = []
     for row in rows:
+        vehicle_type = row.get("vehicleType", "")
+        company = row.get("company", "")
         records.append({
-            "date_text": row["date"],
-            "iso_date": row["isoDate"],
-            "vehicle_type": row["vehicleType"],
-            "vehicle_title": row["vehicleTitle"],
-            "icon": row["icon"],
-            "company": row["company"],
-            "item": row["item"],
+            "date_text": row.get("date", ""),
+            "iso_date": row.get("isoDate", ""),
+            "vehicle_type": vehicle_type,
+            "vehicle_title": row.get("vehicleTitle", ""),
+            "icon": row.get("icon", ""),
+            "company": company,
+            "company_group": row.get("companyGroup") or map_company_group(vehicle_type, company),
+            "item": row.get("item", ""),
+            "net_amount": float(row.get("netAmount", 0) or 0),
+            "collected_amount": float(row.get("collectedAmount", 0) or 0),
+            "source_sheet": row.get("sourceSheet", ""),
             "created_at": now,
         })
 
-    summaries = []
-    for period, summary in weekly_summaries.items():
-        summaries.append({
-            "period_key": period,
-            "car_amount": summary["car"],
-            "motorcycle_amount": summary["motorcycle"],
-            "total_amount": summary["total"],
-            "updated_at": now,
-        })
+    store = {
+        "version": 2,
+        "updated_at": now,
+        "import_type": import_type,
+        "daily_records": records,
+        "weekly_summaries": summaries,
+        "sheet_stats": sheet_stats or [],
+    }
 
-    new_store = {"version": 1, "updated_at": now, "daily_records": records, "weekly_summaries": summaries}
-    write_github_store(new_store, sha, f"update vehicle dashboard data {now}")
+    write_github_store(store, sha, f"update vehicle dashboard data {import_type} {now}")
     clear_dashboard_cache()
 
     return {
         "report_id": 0,
+        "import_type": import_type,
         "imported_dates": len(imported_dates),
         "deleted_records": int(old_record_count or 0),
         "deleted_summaries": int(old_summary_count or 0),
@@ -284,15 +494,60 @@ def save_import_replace_all(raw_text: str) -> dict[str, int]:
         "replaced_summaries": len(summaries),
         "parsed_rows": len(rows),
         "duplicated": 0,
+        "sheet_stats": sheet_stats or [],
     }
 
 
-def get_money_totals_from_weekly_summaries(store: dict[str, Any]) -> dict[str, int]:
+def save_import_replace_all(raw_text: str) -> dict[str, Any]:
+    parsed = parse_report(raw_text)
+    rows = parsed["rows"]
+    weekly_summaries = parsed["weeklySummaries"]
+    if not rows:
+        raise HTTPException(status_code=400, detail="อ่านข้อมูลไม่สำเร็จ: ไม่พบรายการรายวัน")
+
+    summaries = []
+    now = datetime.utcnow().isoformat()
+    for period, summary in weekly_summaries.items():
+        summaries.append({
+            "period_key": period,
+            "car_amount": summary["car"],
+            "motorcycle_amount": summary["motorcycle"],
+            "total_amount": summary["total"],
+            "company_amounts": {},
+            "updated_at": now,
+        })
+
+    return save_records_replace_all(rows, summaries, "text", [])
+
+
+def save_excel_import_replace_all(file_bytes: bytes) -> dict[str, Any]:
+    parsed = parse_excel_report(file_bytes)
+    rows = parsed["rows"]
+    summaries = make_summaries_from_rows(rows)
+    return save_records_replace_all(rows, summaries, "excel", parsed["sheetStats"])
+
+
+def get_money_totals_from_weekly_summaries(store: dict[str, Any]) -> dict[str, Any]:
     summaries = store.get("weekly_summaries", [])
-    car = sum(int(s.get("car_amount", 0) or 0) for s in summaries)
-    motorcycle = sum(int(s.get("motorcycle_amount", 0) or 0) for s in summaries)
-    total = sum(int(s.get("total_amount", 0) or 0) for s in summaries)
-    return {"car": car, "motorcycle": motorcycle, "total": total}
+    car = sum(float(s.get("car_amount", 0) or 0) for s in summaries)
+    motorcycle = sum(float(s.get("motorcycle_amount", 0) or 0) for s in summaries)
+    total = sum(float(s.get("total_amount", 0) or 0) for s in summaries)
+
+    company_amounts = {"RVP": 0.0, "ERGO": 0.0, "TPB": 0.0, "UNKNOWN": 0.0}
+    for s in summaries:
+        for k, v in (s.get("company_amounts") or {}).items():
+            company_amounts[k] = company_amounts.get(k, 0.0) + float(v or 0)
+
+    # Fallback for older text-only data without company amount
+    if not any(company_amounts.values()):
+        company_amounts["RVP"] = motorcycle
+
+    return {
+        "car": round(car, 2),
+        "motorcycle": round(motorcycle, 2),
+        "total": round(total, 2),
+        "company": {k: round(v, 2) for k, v in company_amounts.items()},
+    }
 
 
 def get_dashboard_data(start: str | None = None, end: str | None = None, q: str | None = None) -> dict[str, Any]:
@@ -352,6 +607,8 @@ def get_dashboard_data(start: str | None = None, end: str | None = None, q: str 
         "recordCount": len(filtered_rows),
         "storage": "github_json",
         "updated_at": store.get("updated_at"),
+        "companyAmounts": money_totals.get("company", {}),
+        "importType": store.get("import_type", ""),
     }
 
 
@@ -378,9 +635,9 @@ ADMIN_HTML = """
     <form id="form">
       <div class="row" style="margin-bottom:12px">
         <input type="password" id="token" placeholder="Admin Token" required>
-        <input type="file" id="file" accept=".txt,text/plain">
+        <input type="file" id="file" accept=".txt,.xlsx,.xls,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
       </div>
-      <textarea id="raw_text" placeholder="วางข้อมูลรายสัปดาห์หลายชุดต่อกันได้ตรงนี้..."></textarea>
+      <textarea id="raw_text" placeholder="วางข้อมูล Text เดิม หรือเลือกไฟล์ Excel (.xlsx) เพื่อ Import ได้เลย..."></textarea>
       <div class="row">
         <button class="btn" type="submit">เคลียร์ข้อมูลเดิมทั้งหมดและบันทึกชุดใหม่</button>
         <a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard Only</a>
@@ -397,13 +654,20 @@ const statusBox = document.getElementById('status');
 fileInput.addEventListener('change', async event => {
   const file = event.target.files[0];
   if(!file) return;
-  rawText.value = await file.text();
+  const name = file.name.toLowerCase();
+  if(name.endsWith('.txt')){
+    rawText.value = await file.text();
+  }else if(name.endsWith('.xlsx') || name.endsWith('.xls')){
+    statusBox.textContent = 'เลือกไฟล์ Excel แล้ว: ' + file.name + '\nระบบจะอ่านทุกชีตที่มี header ถูกต้อง และข้ามชีต Dropdown อัตโนมัติ';
+  }
 });
 form.addEventListener('submit', async event => {
   event.preventDefault();
   const fd = new FormData();
   fd.append('raw_text', rawText.value);
   fd.append('token', document.getElementById('token').value);
+  const file = fileInput.files && fileInput.files[0];
+  if(file){ fd.append('file', file); }
   statusBox.textContent = 'กำลังเคลียร์ข้อมูลเดิมทั้งหมด และบันทึกข้อมูลชุดใหม่...';
   const res = await fetch('/api/import', {method:'POST', body:fd});
   const data = await res.json();
@@ -448,10 +712,10 @@ DASHBOARD_HTML = """
 <section class="hero"><div class="hero-card"><div class="period-pill" id="period">📊 Dashboard ข้อมูลสะสมทั้งหมด</div><h1>Vehicle Cumulative Dashboard</h1><p>Dashboard Only สำหรับข้อมูลสะสมทั้งหมดจากฐานข้อมูล</p><div style="margin-top:18px"><span class="status-pill"><span class="dot"></span><span id="refreshStatus">Auto refresh ทุก 30 วิ</span></span></div></div><div class="total-card"><div class="label">ยอดรวมทั้งหมด</div><div class="amount" id="totalAmount">0</div><table class="summary-table"><tr><th>หมวด</th><th>ยอด</th></tr><tr><td>🚛 🚗 รถยนต์</td><td id="carAmount">0 บาท</td></tr><tr><td>🏍 รถจักรยานยนต์</td><td id="motorAmount">0 บาท</td></tr></table></div></section>
 <section class="toolbar"><h2>เลือกช่วงวันที่ Dashboard</h2><div class="filter-group"><input class="date-input" id="startDate" type="date"><input class="date-input" id="endDate" type="date"><button class="btn" id="applyBtn">แสดงช่วงวันที่</button><button class="btn btn2" id="resetBtn">ดูทั้งหมด</button></div></section>
 <section class="kpi-grid">
- <div class="kpi company-kpi" data-company="RVP" onmouseenter="highlightCompany('RVP')" onmouseleave="highlightCompany(null)"><div class="icon"><span class="company-dot" style="background:#2563eb"></span>RVP</div><div class="value" id="rvpCount">0</div><div class="title">บริษัทกลาง RVP</div><div class="company-meta"><span>Share</span><span id="rvpPercent">0%</span></div><div class="company-progress"><span id="rvpBar" style="background:linear-gradient(90deg,#2563eb,#14b8a6)"></span></div></div>
- <div class="kpi company-kpi" data-company="ERGO" onmouseenter="highlightCompany('ERGO')" onmouseleave="highlightCompany(null)"><div class="icon"><span class="company-dot" style="background:#f97316"></span>ERGO</div><div class="value" id="ergoCount">0</div><div class="title">ERGO</div><div class="company-meta"><span>Share</span><span id="ergoPercent">0%</span></div><div class="company-progress"><span id="ergoBar" style="background:linear-gradient(90deg,#f97316,#fb923c)"></span></div></div>
- <div class="kpi company-kpi" data-company="TPB" onmouseenter="highlightCompany('TPB')" onmouseleave="highlightCompany(null)"><div class="icon"><span class="company-dot" style="background:#16a34a"></span>TPB</div><div class="value" id="tpbCount">0</div><div class="title">ไทยไพบูลย์ TPB</div><div class="company-meta"><span>Share</span><span id="tpbPercent">0%</span></div><div class="company-progress"><span id="tpbBar" style="background:linear-gradient(90deg,#16a34a,#22c55e)"></span></div></div>
- <div class="kpi company-kpi" data-company="TOTAL" onmouseenter="highlightCompany('TOTAL')" onmouseleave="highlightCompany(null)"><div class="icon"><span class="company-dot" style="background:#111827"></span>รวม</div><div class="value" id="companyTotalCount">0</div><div class="title">จำนวนรถรวมทั้งหมด</div><div class="company-meta"><span>Share</span><span>100%</span></div><div class="company-progress"><span style="width:100%;background:linear-gradient(90deg,#111827,#64748b)"></span></div></div>
+ <div class="kpi company-kpi" data-company="RVP" onmouseenter="highlightCompany('RVP')" onmouseleave="highlightCompany(null)"><div class="icon"><span class="company-dot" style="background:#2563eb"></span>RVP</div><div class="value" id="rvpCount">0</div><div class="title">บริษัทกลาง RVP</div><div class="title" id="rvpAmount" style="margin-top:4px;font-weight:800;color:#2563eb">0 บาท</div><div class="company-meta"><span>Share</span><span id="rvpPercent">0%</span></div><div class="company-progress"><span id="rvpBar" style="background:linear-gradient(90deg,#2563eb,#14b8a6)"></span></div></div>
+ <div class="kpi company-kpi" data-company="ERGO" onmouseenter="highlightCompany('ERGO')" onmouseleave="highlightCompany(null)"><div class="icon"><span class="company-dot" style="background:#f97316"></span>ERGO</div><div class="value" id="ergoCount">0</div><div class="title">ERGO</div><div class="title" id="ergoAmount" style="margin-top:4px;font-weight:800;color:#f97316">0 บาท</div><div class="company-meta"><span>Share</span><span id="ergoPercent">0%</span></div><div class="company-progress"><span id="ergoBar" style="background:linear-gradient(90deg,#f97316,#fb923c)"></span></div></div>
+ <div class="kpi company-kpi" data-company="TPB" onmouseenter="highlightCompany('TPB')" onmouseleave="highlightCompany(null)"><div class="icon"><span class="company-dot" style="background:#16a34a"></span>TPB</div><div class="value" id="tpbCount">0</div><div class="title">ไทยไพบูลย์ TPB</div><div class="title" id="tpbAmount" style="margin-top:4px;font-weight:800;color:#16a34a">0 บาท</div><div class="company-meta"><span>Share</span><span id="tpbPercent">0%</span></div><div class="company-progress"><span id="tpbBar" style="background:linear-gradient(90deg,#16a34a,#22c55e)"></span></div></div>
+ <div class="kpi company-kpi" data-company="TOTAL" onmouseenter="highlightCompany('TOTAL')" onmouseleave="highlightCompany(null)"><div class="icon"><span class="company-dot" style="background:#111827"></span>รวม</div><div class="value" id="companyTotalCount">0</div><div class="title">จำนวนรถรวมทั้งหมด</div><div class="title" id="companyTotalAmount" style="margin-top:4px;font-weight:800;color:#111827">0 บาท</div><div class="company-meta"><span>Share</span><span>100%</span></div><div class="company-progress"><span style="width:100%;background:linear-gradient(90deg,#111827,#64748b)"></span></div></div>
 </section>
 <section class="section-grid"><div class="panel"><h2>จำนวนรถรายวัน แยกตามบริษัท</h2><div class="chart-wrap"><canvas id="dailyChart"></canvas></div></div><div class="hybrid-card"><div class="hybrid-head"><div><h2 style="margin:0">สัดส่วนประเภทรถ</h2></div><div><div class="hybrid-total" id="hybridTotal">0</div><div class="hybrid-label">คันทั้งหมด</div></div></div><div class="breakdown-list" id="breakdownList"></div></div></section>
 <section class="toolbar"><h2>รายการแยกรายวัน</h2><div class="filter-group"><input class="search-input" id="searchBox" placeholder="ค้นหาทะเบียน / เลขกรมธรรม์ / บริษัท"><select class="date-select" id="dateFilter"><option value="all">ดูทั้งหมด</option></select><button class="btn" id="showDateBtn">แสดงวันที่เลือก</button><button class="btn btn2" id="showAllBtn">ดูทั้งหมด</button><button class="btn btnToggle active" id="detailModeBtn">📄 Detail</button><button class="btn btnToggle" id="compactModeBtn">⚡ Compact</button><button class="btn btnDark" id="exportPdfBtn">Export PDF</button><button class="btn btnDark" id="exportExcelBtn">Export Excel</button></div></section>
@@ -487,10 +751,17 @@ function getCompanySummary(){
 }
 function setCompanyKPI(){
  const s=getCompanySummary();
+ const companyAmounts=(report.amounts&&report.amounts.company)||{};
+ const amountRVP=companyAmounts.RVP||0, amountERGO=companyAmounts.ERGO||0, amountTPB=companyAmounts.TPB||0;
+ const amountTotal=amountRVP+amountERGO+amountTPB+(companyAmounts.UNKNOWN||0);
  const pct=(v)=>s.total?Math.round((v/s.total)*100):0;
  animateNumber(box('rvpCount'),s.RVP);animateNumber(box('ergoCount'),s.ERGO);animateNumber(box('tpbCount'),s.TPB);animateNumber(box('companyTotalCount'),s.total);
  box('rvpPercent').textContent=pct(s.RVP)+'%';box('ergoPercent').textContent=pct(s.ERGO)+'%';box('tpbPercent').textContent=pct(s.TPB)+'%';
  box('rvpBar').style.width=pct(s.RVP)+'%';box('ergoBar').style.width=pct(s.ERGO)+'%';box('tpbBar').style.width=pct(s.TPB)+'%';
+ if(box('rvpAmount')) box('rvpAmount').textContent=money(amountRVP)+' บาท';
+ if(box('ergoAmount')) box('ergoAmount').textContent=money(amountERGO)+' บาท';
+ if(box('tpbAmount')) box('tpbAmount').textContent=money(amountTPB)+' บาท';
+ if(box('companyTotalAmount')) box('companyTotalAmount').textContent=money(amountTotal)+' บาท';
 }
 function colorWithAlpha(hex,alpha){const map={'#2563eb':'37,99,235','#f97316':'249,115,22','#16a34a':'22,163,74','#111827':'17,24,39','#94a3b8':'148,163,184'};return `rgba(${map[hex]||'37,99,235'},${alpha})`}
 function setCompanyCardsState(company){document.querySelectorAll('.company-kpi').forEach(card=>{const c=card.dataset.company;card.classList.toggle('active',!!company&&c===company);card.classList.toggle('dim',!!company&&c!==company&&company!=='TOTAL')})}
@@ -590,12 +861,30 @@ def dashboard_page() -> str:
 
 
 @app.post("/api/import")
-def api_import(token: str = Form(...), raw_text: str = Form("")) -> JSONResponse:
+async def api_import(
+    token: str = Form(...),
+    raw_text: str = Form(""),
+    file: UploadFile | None = File(default=None),
+) -> JSONResponse:
     if token != ADMIN_TOKEN:
         raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
+
+    if file and file.filename:
+        filename = file.filename.lower()
+        content = await file.read()
+        if filename.endswith((".xlsx", ".xls")):
+            result = save_excel_import_replace_all(content)
+            return JSONResponse({"ok": True, **result})
+        if filename.endswith(".txt"):
+            text = content.decode("utf-8-sig", errors="ignore").strip()
+            if not text:
+                raise HTTPException(status_code=400, detail="ไฟล์ Text ไม่มีข้อมูล")
+            result = save_import_replace_all(text)
+            return JSONResponse({"ok": True, **result})
+
     text = raw_text.strip()
     if not text:
-        raise HTTPException(status_code=400, detail="ไม่พบข้อมูลรายงาน")
+        raise HTTPException(status_code=400, detail="ไม่พบข้อมูลรายงาน กรุณาวาง Text หรือเลือกไฟล์ Excel")
     result = save_import_replace_all(text)
     return JSONResponse({"ok": True, **result})
 
@@ -631,6 +920,8 @@ def api_health() -> JSONResponse:
         "daily_records": len(store.get("daily_records", [])),
         "weekly_summaries": len(store.get("weekly_summaries", [])),
         "updated_at": store.get("updated_at"),
+        "companyAmounts": money_totals.get("company", {}),
+        "importType": store.get("import_type", ""),
         "cache_ttl_seconds": CACHE_TTL_SECONDS,
         "cache_key": DASHBOARD_CACHE.get("key"),
     })
