@@ -1,31 +1,32 @@
-# Vehicle Dashboard v6.4 Company Finance Grid
+# Vehicle Dashboard v6.5 Excel Money Import Status
 
 พร้อม Deploy
 
-## แก้ตาม Requirement ล่าสุด
+## แก้ไขในเวอร์ชันนี้
 
-1. Company KPI Grid แสดงข้อมูลครบทุกบริษัท
-   - RVP
-   - ERGO
-   - TPB
-   - รวมทั้งหมด
+1. แก้ Excel Import ให้จับหัวคอลัมน์ยอดเงินได้แข็งขึ้น
+   - ยอดสุทธิ / สุทธิ / Net
+   - ยอดเก็บจริง / ยอดเก็บ / เก็บจริง / Collected
+   - normalize กรณีหัวคอลัมน์มีช่องว่าง/บรรทัดใหม่/อักขระไทยผิด
 
-2. แต่ละบริษัทแสดง
-   - จำนวนรถทั้งหมด
+2. Company KPI Grid แสดง
+   - จำนวนรถ
    - ยอดสุทธิ
    - ยอดเก็บจริง
-   - จำนวนรถแยกตามชนิด: มอเตอร์ไซต์ / กระบะ / เก๋ง
-   - Share %
+   - จำนวนรถแยกชนิด 🏍 🚛 🚗
 
-3. สีบริษัท
-   - RVP = น้ำเงิน
-   - ERGO = แดง
-   - TPB = ฟ้า
-   - รวม = ดำ/เทาเข้ม
+3. เพิ่มสถานะหลัง Upload / Import
+   - ประเภท Import
+   - จำนวนวันที่
+   - จำนวน record ที่บันทึก
+   - สรุป RVP / ERGO / TPB / รวม
+   - รายงานว่าแต่ละ Sheet ถูก import หรือ skipped
 
-4. รองรับ Excel Import และ Text Import เดิม
-   - Excel ใช้ยอดสุทธิและยอดเก็บจริงต่อรายการ
-   - Text เดิมยังใช้ได้ แต่ถ้า Text ไม่มียอดต่อบริษัท จะคำนวณเงินต่อบริษัทได้เท่าที่ข้อมูลมี
+4. ยังรองรับ
+   - Import Excel
+   - Import Text เดิม
+   - GitHub JSON DB
+   - Replace All mode
 
 ## Deploy
 อัปโหลดไฟล์ทั้งหมดใน ZIP นี้ไปแทนของเดิมใน repo `vehicle-dashboard`

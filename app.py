@@ -23,7 +23,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-app = FastAPI(title="Vehicle Dashboard v6.4 Company Finance Grid")
+app = FastAPI(title="Vehicle Dashboard v6.5 Excel Money Import Status")
 
 
 def github_enabled() -> bool:
@@ -223,7 +223,10 @@ def parse_report(raw_text: str) -> dict[str, Any]:
                     "vehicleTitle": current_meta["title"],
                     "icon": current_meta["icon"],
                     "company": current_company or "",
+                    "companyGroup": map_company_group(current_meta["key"], current_company or ""),
                     "item": item_text,
+                    "netAmount": 0,
+                    "collectedAmount": 0,
                 }
             )
 
@@ -238,7 +241,11 @@ def parse_report(raw_text: str) -> dict[str, Any]:
 
 
 def normalize_header(value: Any) -> str:
-    return str(value or "").strip().replace("\n", "").replace(" ", "")
+    text = str(value or "").strip()
+    text = text.replace("\n", "").replace("\r", "")
+    text = text.replace(" ", "").replace("\u00a0", "")
+    text = text.replace("ํ", "")  # normalize rare Thai mark typo in บริษํท
+    return text
 
 
 def find_header_row(ws) -> tuple[int | None, dict[str, int]]:
@@ -247,8 +254,8 @@ def find_header_row(ws) -> tuple[int | None, dict[str, int]]:
         "vehicle_type": ["ประเภทรถ", "ประเภท"],
         "company": ["บริษัท", "บริษํท"],
         "item": ["รหัส", "เลขกรมธรรม์", "รายการ"],
-        "net_amount": ["ยอดสุทธิ"],
-        "collected_amount": ["ยอดเก็บจริง", "ยอดเก็บ"],
+        "net_amount": ["ยอดสุทธิ", "สุทธิ", "ยอดเงินสุทธิ", "Net", "net"],
+        "collected_amount": ["ยอดเก็บจริง", "ยอดเก็บ", "เก็บจริง", "ยอดรับจริง", "Collected", "collected"],
     }
 
     for row_idx in range(1, min(ws.max_row, 20) + 1):
@@ -343,7 +350,10 @@ def parse_excel_report(file_bytes: bytes) -> dict[str, Any]:
     for ws in wb.worksheets:
         header_row, col = find_header_row(ws)
         if not header_row:
-            sheet_stats.append({"sheet": ws.title, "status": "skipped", "reason": "ไม่พบ header ที่จำเป็น"})
+            preview_headers = []
+            for rr in range(1, min(ws.max_row, 5) + 1):
+                preview_headers.append([str(ws.cell(rr, cc).value or "").strip() for cc in range(1, min(ws.max_column, 8) + 1)])
+            sheet_stats.append({"sheet": ws.title, "status": "skipped", "reason": "ไม่พบ header ที่จำเป็น", "preview": preview_headers})
             continue
 
         last_date_text = ""
@@ -479,6 +489,16 @@ def save_records_replace_all(rows: list[dict[str, Any]], summaries: list[dict[st
         "daily_records": records,
         "weekly_summaries": summaries,
         "sheet_stats": sheet_stats or [],
+        "import_summary": build_company_summary([
+            {
+                "vehicle_type": r.get("vehicleType", ""),
+                "company": r.get("company", ""),
+                "company_group": r.get("companyGroup") or map_company_group(r.get("vehicleType", ""), r.get("company", "")),
+                "net_amount": r.get("netAmount", 0),
+                "collected_amount": r.get("collectedAmount", 0),
+            }
+            for r in rows
+        ]),
     }
 
     write_github_store(store, sha, f"update vehicle dashboard data {import_type} {now}")
