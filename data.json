@@ -1,6 +1,6 @@
 {
-  "version": "v6.10-company-field-money-version",
-  "updated_at": "2026-05-03T14:32:24.712926",
+  "version": "v6.11-full-backend-clear-data-excel-final",
+  "updated_at": "2026-05-03T14:49:07.800562",
   "import_type": "excel",
   "daily_records": [
     {
@@ -15,7 +15,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "20/04/2569",
@@ -29,7 +29,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "20/04/2569",
@@ -43,7 +43,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "20/04/2569",
@@ -57,7 +57,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "20/04/2569",
@@ -71,7 +71,7 @@
       "net_amount": 967.28,
       "collected_amount": 867.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "20/04/2569",
@@ -85,7 +85,7 @@
       "net_amount": 967.28,
       "collected_amount": 867.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "20/04/2569",
@@ -99,7 +99,7 @@
       "net_amount": 967.28,
       "collected_amount": 867.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "21/04/2569",
@@ -113,7 +113,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "21/04/2569",
@@ -127,7 +127,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "21/04/2569",
@@ -141,7 +141,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "21/04/2569",
@@ -155,7 +155,7 @@
       "net_amount": 645.21,
       "collected_amount": 545.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "22/04/2569",
@@ -169,7 +169,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "22/04/2569",
@@ -183,7 +183,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "22/04/2569",
@@ -197,7 +197,7 @@
       "net_amount": 967.28,
       "collected_amount": 867.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "22/04/2569",
@@ -211,7 +211,7 @@
       "net_amount": 645.21,
       "collected_amount": 545.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "23/04/2569",
@@ -225,7 +225,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "23/04/2569",
@@ -239,7 +239,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "23/04/2569",
@@ -253,7 +253,7 @@
       "net_amount": 367.12,
       "collected_amount": 377.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "23/04/2569",
@@ -267,7 +267,7 @@
       "net_amount": 967.28,
       "collected_amount": 867.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "23/04/2569",
@@ -281,7 +281,7 @@
       "net_amount": 967.28,
       "collected_amount": 867.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "23/04/2569",
@@ -295,7 +295,7 @@
       "net_amount": 645.21,
       "collected_amount": 545.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "24/04/2569",
@@ -309,7 +309,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "24/04/2569",
@@ -323,7 +323,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "24/04/2569",
@@ -337,7 +337,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "24/04/2569",
@@ -351,7 +351,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "24/04/2569",
@@ -365,7 +365,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "24/04/2569",
@@ -379,7 +379,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "24/04/2569",
@@ -393,7 +393,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "24/04/2569",
@@ -407,7 +407,7 @@
       "net_amount": 967.28,
       "collected_amount": 867.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "24/04/2569",
@@ -421,7 +421,7 @@
       "net_amount": 645.21,
       "collected_amount": 545.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "25/04/2569",
@@ -435,7 +435,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690420 - 25690426",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "27/04/2569",
@@ -449,7 +449,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "27/04/2569",
@@ -463,7 +463,7 @@
       "net_amount": 967.28,
       "collected_amount": 867.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "27/04/2569",
@@ -477,7 +477,7 @@
       "net_amount": 645.21,
       "collected_amount": 545.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "27/04/2569",
@@ -491,7 +491,7 @@
       "net_amount": 645.21,
       "collected_amount": 545.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "28/04/2569",
@@ -505,7 +505,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "28/04/2569",
@@ -519,7 +519,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "28/04/2569",
@@ -533,7 +533,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "29/04/2569",
@@ -547,7 +547,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "29/04/2569",
@@ -561,7 +561,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "29/04/2569",
@@ -575,7 +575,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "29/04/2569",
@@ -589,7 +589,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "29/04/2569",
@@ -603,7 +603,7 @@
       "net_amount": 645.21,
       "collected_amount": 545.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "30/04/2569",
@@ -617,7 +617,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "30/04/2569",
@@ -631,7 +631,7 @@
       "net_amount": 645.21,
       "collected_amount": 545.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "30/04/2569",
@@ -645,7 +645,7 @@
       "net_amount": 645.21,
       "collected_amount": 545.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "01/05/2569",
@@ -659,7 +659,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "01/05/2569",
@@ -673,7 +673,7 @@
       "net_amount": 266.76,
       "collected_amount": 276.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "01/05/2569",
@@ -687,7 +687,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "01/05/2569",
@@ -701,7 +701,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "01/05/2569",
@@ -715,7 +715,7 @@
       "net_amount": 323.14,
       "collected_amount": 340.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "01/05/2569",
@@ -729,7 +729,7 @@
       "net_amount": 967.28,
       "collected_amount": 867.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     },
     {
       "date_text": "01/05/2569",
@@ -743,7 +743,7 @@
       "net_amount": 967.28,
       "collected_amount": 867.0,
       "source_sheet": "25690427 - 25690503",
-      "created_at": "2026-05-03T14:32:24.712926"
+      "created_at": "2026-05-03T14:49:07.800562"
     }
   ],
   "weekly_summaries": [
@@ -758,7 +758,7 @@
         "TPB": 8794.0,
         "UNKNOWN": 0.0
       },
-      "updated_at": "2026-05-03T14:32:24.712675"
+      "updated_at": "2026-05-03T14:49:07.800676"
     }
   ],
   "sheet_stats": [

@@ -24,7 +24,7 @@ CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
 PROJECT_NAME = "vehicle-dashboard"
-APP_VERSION = "v6.10-company-field-money-version"
+APP_VERSION = "v6.11-full-backend-clear-data-excel-final"
 app = FastAPI(title=f"Vehicle Dashboard {APP_VERSION}")
 
 
@@ -595,6 +595,29 @@ def save_excel_import_replace_all(file_bytes: bytes) -> dict[str, Any]:
     summaries = make_summaries_from_rows(rows)
     return save_records_replace_all(rows, summaries, "excel", parsed["sheetStats"])
 
+def clear_data_store() -> dict[str, Any]:
+    now = datetime.utcnow().isoformat()
+    store, sha = read_github_store()
+    old_record_count = len(store.get("daily_records", []))
+    old_summary_count = len(store.get("weekly_summaries", []))
+    cleared = {
+        "version": APP_VERSION,
+        "updated_at": now,
+        "import_type": "cleared",
+        "daily_records": [],
+        "weekly_summaries": [],
+        "sheet_stats": [],
+        "import_summary": build_company_summary([]),
+        "cleared_at": now,
+    }
+    write_github_store(cleared, sha, f"clear vehicle dashboard data {now}")
+    clear_dashboard_cache()
+    return {
+        "deleted_records": old_record_count,
+        "deleted_summaries": old_summary_count,
+        "updated_at": now,
+    }
+
 
 def get_money_totals_from_weekly_summaries(store: dict[str, Any]) -> dict[str, Any]:
     summaries = store.get("weekly_summaries", [])
@@ -750,7 +773,7 @@ ADMIN_HTML = """
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--cyan:#14b8a6;--line:#e5e7eb;--shadow:0 16px 40px rgba(15,23,42,.08)}
-*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.wrap{width:min(980px,94vw);margin:auto;padding:32px 0}.card{background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border-radius:28px;padding:26px;box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9)}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:28px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:34px}.hero p{margin:0;opacity:.9}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid var(--line)}textarea{width:100%;height:440px;border:1px solid var(--line);border-radius:18px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}input{padding:12px 14px;border:1px solid var(--line);border-radius:14px;font-family:Prompt,sans-serif}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 12px 22px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn2{background:#eff6ff;color:#1d4ed8;box-shadow:none}.status{margin-top:16px;color:#172033;white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:18px;padding:14px;line-height:1.65;font-weight:600}.hint{padding:12px 14px;background:#eff6ff;color:#1d4ed8;border-radius:14px;margin:12px 0;font-size:14px}.danger{background:#fff7ed;color:#9a3412}
+*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.wrap{width:min(980px,94vw);margin:auto;padding:32px 0}.card{background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border-radius:28px;padding:26px;box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9)}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:28px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:34px}.hero p{margin:0;opacity:.9}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid var(--line)}textarea{width:100%;height:440px;border:1px solid var(--line);border-radius:18px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}input{padding:12px 14px;border:1px solid var(--line);border-radius:14px;font-family:Prompt,sans-serif}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 12px 22px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn2{background:#eff6ff;color:#1d4ed8;box-shadow:none}.btn-danger{background:linear-gradient(135deg,#dc2626,#f97316);box-shadow:0 12px 22px rgba(220,38,38,.18)}.status{margin-top:16px;color:#172033;white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:18px;padding:14px;line-height:1.65;font-weight:600}.hint{padding:12px 14px;background:#eff6ff;color:#1d4ed8;border-radius:14px;margin:12px 0;font-size:14px}.danger{background:#fff7ed;color:#9a3412}
 </style>
 </head>
 <body>
@@ -768,6 +791,7 @@ ADMIN_HTML = """
       <textarea id="raw_text" placeholder="วางข้อมูล Text เดิม หรือเลือกไฟล์ Excel (.xlsx) เพื่อ Import ได้เลย..."></textarea>
       <div class="row">
         <button class="btn" type="submit">เคลียร์ข้อมูลเดิมทั้งหมดและบันทึกชุดใหม่</button>
+        <button class="btn btn-danger" type="button" id="clearDataBtn">เคลียร์ข้อมูลทั้งหมด</button>
         <a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard Only</a>
       </div>
     </form>
@@ -813,6 +837,19 @@ form.addEventListener('submit', async event => {
     'ลบข้อมูลเดิม: ' + data.deleted_records + ' รายการ\\n' +
     'บันทึกข้อมูลใหม่: ' + data.inserted + ' รายการ\\n' +
     'อัปเดตยอดสรุปรายสัปดาห์: ' + data.replaced_summaries + ' ชุด';
+});
+
+document.getElementById('clearDataBtn').addEventListener('click', async () => {
+  const token = document.getElementById('token').value;
+  if(!token){statusBox.textContent = 'กรุณากรอก Admin Token ก่อนเคลียร์ข้อมูล'; return;}
+  if(!confirm('ยืนยันเคลียร์ข้อมูลทั้งหมดใน data.json?')) return;
+  const fd = new FormData();
+  fd.append('token', token);
+  statusBox.textContent = 'กำลังเคลียร์ข้อมูลทั้งหมด...';
+  const res = await fetch('/api/data/clear', {method:'POST', body:fd});
+  const data = await res.json();
+  if(!res.ok){statusBox.textContent = data.detail || 'เคลียร์ข้อมูลไม่สำเร็จ'; return;}
+  statusBox.textContent = 'เคลียร์ข้อมูลสำเร็จ\nลบรายการเดิม: ' + data.deleted_records + ' รายการ\nลบยอดสรุปเดิม: ' + data.deleted_summaries + ' ชุด';
 });
 </script>
 </body>
@@ -905,7 +942,7 @@ DASHBOARD_HTML = """
 <div class="version-badge" id="versionBadge">vehicle-dashboard</div>
 </main>
 <script>
-const PROJECT_NAME='vehicle-dashboard';const APP_VERSION='v6.10-company-field-money-version';let report=null,allDays=[],filteredDays=[],viewDays=[],dailyChart=null;let currentPage=1,pageSize=8,viewMode='detail',activeSelected='all';const box=id=>document.getElementById(id);const money=n=>Math.round(n||0).toLocaleString('th-TH');function destroy(){if(dailyChart)dailyChart.destroy()}function setupRange(){const dates=allDays.map(d=>d.isoDate).filter(Boolean).sort();box('startDate').value=dates[0]||'';box('endDate').value=dates[dates.length-1]||''}function flattenRows(days){const rows=[];days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item}))));return rows}
+const PROJECT_NAME='vehicle-dashboard';const APP_VERSION='v6.11-full-backend-clear-data-excel-final';let report=null,allDays=[],filteredDays=[],viewDays=[],dailyChart=null;let currentPage=1,pageSize=8,viewMode='detail',activeSelected='all';const box=id=>document.getElementById(id);const money=n=>Math.round(n||0).toLocaleString('th-TH');function destroy(){if(dailyChart)dailyChart.destroy()}function setupRange(){const dates=allDays.map(d=>d.isoDate).filter(Boolean).sort();box('startDate').value=dates[0]||'';box('endDate').value=dates[dates.length-1]||''}function flattenRows(days){const rows=[];days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item}))));return rows}
 function animateNumber(el,target){const end=Number(target)||0;const start=Number((el.textContent||'0').replace(/,/g,''))||0;const duration=420;const t0=performance.now();function tick(now){const p=Math.min(1,(now-t0)/duration);const eased=1-Math.pow(1-p,3);el.textContent=money(start+(end-start)*eased);if(p<1)requestAnimationFrame(tick);else el.textContent=money(end)}requestAnimationFrame(tick)}
 function colorWithAlpha(hex,alpha){const map={'#2563eb':'37,99,235','#f97316':'249,115,22','#dc2626':'220,38,38','#16a34a':'22,163,74','#0ea5e9':'14,165,233','#111827':'17,24,39'};return `rgba(${map[hex]||'37,99,235'},${alpha})`}function applyChartHighlight(index){if(!dailyChart)return;const colors=['#2563eb','#f97316','#16a34a'];dailyChart.data.datasets.forEach((ds,di)=>{if(ds.type==='line'){ds.borderColor=index==null?'#111827':colorWithAlpha('#111827',.95);ds.backgroundColor=ds.borderColor;ds.pointBackgroundColor=ds.data.map((_,i)=>index==null||i===index?'#111827':colorWithAlpha('#111827',.18));return}ds.backgroundColor=ds.data.map((_,i)=>index==null||i===index?colors[di]:colorWithAlpha(colors[di],.18))});dailyChart.update('none')}
 function companyGroupOf(g){
@@ -1167,6 +1204,13 @@ def api_cache_clear(token: str = Form(...)) -> JSONResponse:
         raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
     clear_dashboard_cache()
     return JSONResponse({"ok": True, "message": "cache cleared"})
+
+@app.post("/api/data/clear")
+def api_data_clear(token: str = Form(...)) -> JSONResponse:
+    if token != ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
+    result = clear_data_store()
+    return JSONResponse({"ok": True, **result})
 
 
 @app.get("/api/github/test")
