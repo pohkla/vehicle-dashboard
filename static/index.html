@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vehicle Dashboard System</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Vehicle Dashboard System</p>
+        <h1>Company KPI Dashboard</h1>
+        <p class="muted">แสดงผลรวมสะสม แยกบริษัท ยอดสุทธิ ยอดเก็บจริง และประเภทรถ</p>
+      </div>
+      <button class="btn" onclick="refreshSummary()">Refresh</button>
+    </section>
+
+    <section id="companyGrid" class="company-grid"></section>
+
+    <section class="panel">
+      <h2>Import Preview</h2>
+      <p class="muted">รองรับ Excel หลาย Sheet / Merge Cell / Text เดิม</p>
+      <div class="import-box">
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.txt,.csv" />
+        <textarea id="textInput" placeholder="วางข้อมูล Text legacy ได้ที่นี่"></textarea>
+        <div class="actions">
+          <button class="btn" onclick="previewImport()">Preview</button>
+          <button class="btn btn-dark" onclick="savePreview()">Save Replace All</button>
+          <button class="btn btn-danger" onclick="clearData()">Clear</button>
+        </div>
+      </div>
+      <pre id="previewBox" class="preview"></pre>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
