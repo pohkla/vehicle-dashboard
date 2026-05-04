@@ -6,6 +6,7 @@ import base64
 import time
 import urllib.request
 import urllib.error
+import logging
 import openpyxl
 from datetime import datetime, date
 from pathlib import Path
@@ -22,6 +23,8 @@ GITHUB_FILE = os.getenv("GITHUB_FILE", "data.json")
 GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+logger = logging.getLogger("vehicle-dashboard")
 
 app = FastAPI(title="Vehicle Dashboard v6.8 Import Flow Final Fix")
 
@@ -272,12 +275,34 @@ def find_header_row(ws) -> tuple[int | None, dict[str, int]]:
                     header_map[key] = normalized[alias_norm]
                     break
 
-        must_have = ["date", "vehicle_type", "company", "item", "collected_amount"]
+        must_have = ["date", "vehicle_type", "company", "item", "net_amount", "collected_amount"]
         if all(key in header_map for key in must_have):
             return row_idx, header_map
 
     return None, {}
 
+
+
+
+def collect_header_debug(ws, row_idx: int | None = None) -> list[str]:
+    """Return readable headers for debug log and API responses."""
+    target_row = row_idx or 1
+    headers: list[str] = []
+    for col_idx in range(1, ws.max_column + 1):
+        value = ws.cell(target_row, col_idx).value
+        text = str(value or "").strip()
+        if text:
+            headers.append(text)
+    return headers
+
+
+def build_excel_import_debug(sheet_stats: list[dict[str, Any]], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "parsed_rows": len(rows),
+        "sheets": sheet_stats,
+        "headers": {s.get("sheet", ""): s.get("headers", []) for s in sheet_stats if s.get("headers")},
+        "first_row": rows[0] if rows else None,
+    }
 
 def parse_excel_date(value: Any) -> tuple[str, str]:
     if value is None or value == "":
@@ -343,7 +368,13 @@ def map_company_group(vehicle_type: str, company: str) -> str:
 
 
 def parse_excel_report(file_bytes: bytes) -> dict[str, Any]:
-    wb = openpyxl.load_workbook(BytesIO(file_bytes), data_only=True)
+    logger.info("Excel import: start parse file_size=%s bytes", len(file_bytes or b""))
+    try:
+        wb = openpyxl.load_workbook(BytesIO(file_bytes), data_only=True)
+    except Exception as e:
+        logger.exception("Excel import: openpyxl failed")
+        raise HTTPException(status_code=400, detail=f"อ่านไฟล์ Excel ไม่สำเร็จ: {str(e)}")
+
     rows: list[dict[str, Any]] = []
     sheet_stats: list[dict[str, Any]] = []
 
@@ -352,22 +383,32 @@ def parse_excel_report(file_bytes: bytes) -> dict[str, Any]:
         if not header_row:
             preview_headers = []
             for rr in range(1, min(ws.max_row, 5) + 1):
-                preview_headers.append([str(ws.cell(rr, cc).value or "").strip() for cc in range(1, min(ws.max_column, 8) + 1)])
-            sheet_stats.append({"sheet": ws.title, "status": "skipped", "reason": "ไม่พบ header ที่จำเป็น", "preview": preview_headers})
+                preview_headers.append([str(ws.cell(rr, cc).value or "").strip() for cc in range(1, min(ws.max_column, 12) + 1)])
+            sheet_stats.append({
+                "sheet": ws.title,
+                "status": "skipped",
+                "reason": "ไม่พบ header ที่จำเป็น: วันที่, ประเภทรถ, บริษัท, รหัส, ยอดสุทธิ, ยอดเก็บจริง",
+                "preview": preview_headers,
+            })
+            logger.warning("Excel import: sheet=%s skipped header_not_found preview=%s", ws.title, preview_headers[:2])
             continue
+
+        headers = collect_header_debug(ws, header_row)
+        logger.info("Excel import: sheet=%s header_row=%s headers=%s colmap=%s", ws.title, header_row, headers, col)
 
         last_date_text = ""
         last_iso_date = ""
         last_vehicle_text = ""
         last_company = ""
         inserted = 0
+        skipped = 0
 
         for r in range(header_row + 1, ws.max_row + 1):
             raw_date = ws.cell(r, col["date"]).value
             raw_vehicle = ws.cell(r, col["vehicle_type"]).value
             raw_company = ws.cell(r, col["company"]).value
             raw_item = ws.cell(r, col["item"]).value
-            raw_net = ws.cell(r, col.get("net_amount", col["collected_amount"])).value
+            raw_net = ws.cell(r, col["net_amount"]).value
             raw_collected = ws.cell(r, col["collected_amount"]).value
 
             date_text, iso_date = parse_excel_date(raw_date)
@@ -388,10 +429,12 @@ def parse_excel_report(file_bytes: bytes) -> dict[str, Any]:
 
             item = str(raw_item or "").strip().replace("_", " ")
             if not item or not iso_date or not vehicle_text:
+                skipped += 1
                 continue
 
             meta = map_excel_vehicle_type(vehicle_text)
             if not meta:
+                skipped += 1
                 continue
 
             net_amount = to_float(raw_net)
@@ -409,15 +452,22 @@ def parse_excel_report(file_bytes: bytes) -> dict[str, Any]:
                 "netAmount": net_amount,
                 "collectedAmount": collected_amount,
                 "sourceSheet": ws.title,
+                "sourceRow": r,
             })
             inserted += 1
 
-        sheet_stats.append({"sheet": ws.title, "status": "imported", "rows": inserted})
+        sheet_stats.append({"sheet": ws.title, "status": "imported", "headerRow": header_row, "headers": headers, "rows": inserted, "skippedRows": skipped})
+        logger.info("Excel import: sheet=%s parsed_rows=%s skipped_rows=%s", ws.title, inserted, skipped)
 
+    logger.info("Excel import: total parsed_rows=%s", len(rows))
     if not rows:
-        raise HTTPException(status_code=400, detail="อ่าน Excel ไม่สำเร็จ: ไม่พบชีตที่มี header และข้อมูลที่ใช้งานได้")
+        raise HTTPException(status_code=400, detail={
+            "message": "อ่าน Excel ไม่สำเร็จ: ไม่พบชีตที่มี header และข้อมูลที่ใช้งานได้",
+            "required_headers": ["วันที่", "ประเภทรถ", "บริษัท", "รหัส", "ยอดสุทธิ", "ยอดเก็บจริง"],
+            "sheet_stats": sheet_stats,
+        })
 
-    return {"rows": rows, "sheetStats": sheet_stats}
+    return {"rows": rows, "sheetStats": sheet_stats, "debug": build_excel_import_debug(sheet_stats, rows)}
 
 
 def make_summaries_from_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -452,13 +502,14 @@ def make_summaries_from_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
 
 
 
-def save_records_replace_all(rows: list[dict[str, Any]], summaries: list[dict[str, Any]], import_type: str, sheet_stats: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+def save_records_replace_all(rows: list[dict[str, Any]], summaries: list[dict[str, Any]], import_type: str, sheet_stats: list[dict[str, Any]] | None = None, import_debug: dict[str, Any] | None = None) -> dict[str, Any]:
     if not rows:
         raise HTTPException(status_code=400, detail="ไม่พบรายการสำหรับนำเข้า")
 
     now = datetime.utcnow().isoformat()
     imported_dates = sorted({row["isoDate"] for row in rows if row.get("isoDate")})
     store, sha = read_github_store()
+    logger.info("Import %s: before GitHub write old_records=%s old_summaries=%s sha_exists=%s", import_type, len(store.get("daily_records", [])), len(store.get("weekly_summaries", [])), bool(sha))
 
     old_record_count = len(store.get("daily_records", []))
     old_summary_count = len(store.get("weekly_summaries", []))
@@ -479,6 +530,7 @@ def save_records_replace_all(rows: list[dict[str, Any]], summaries: list[dict[st
             "net_amount": float(row.get("netAmount", 0) or 0),
             "collected_amount": float(row.get("collectedAmount", 0) or 0),
             "source_sheet": row.get("sourceSheet", ""),
+            "source_row": row.get("sourceRow", ""),
             "created_at": now,
         })
 
@@ -489,6 +541,7 @@ def save_records_replace_all(rows: list[dict[str, Any]], summaries: list[dict[st
         "daily_records": records,
         "weekly_summaries": summaries,
         "sheet_stats": sheet_stats or [],
+        "import_debug": import_debug or {"parsed_rows": len(rows)},
         "import_summary": build_company_summary([
             {
                 "vehicle_type": r.get("vehicleType", ""),
@@ -502,7 +555,15 @@ def save_records_replace_all(rows: list[dict[str, Any]], summaries: list[dict[st
     }
 
     write_github_store(store, sha, f"update vehicle dashboard data {import_type} {now}")
+    logger.info("Import %s: after GitHub write inserted=%s summaries=%s", import_type, len(records), len(summaries))
     clear_dashboard_cache()
+    verify_store, _ = read_github_store()
+    verify_rows = verify_store.get("daily_records", [])
+    verify_ok = verify_store.get("import_type") == import_type and len(verify_rows) == len(records)
+    if not verify_ok:
+        logger.error("Import %s: verify failed verify_import_type=%s verify_records=%s expected=%s", import_type, verify_store.get("import_type"), len(verify_rows), len(records))
+        raise HTTPException(status_code=500, detail="เขียน GitHub แล้ว แต่ Verify อ่านกลับไม่ตรงกับข้อมูลที่ Import")
+    logger.info("Import %s: verify success records=%s", import_type, len(verify_rows))
 
     return {
         "report_id": 0,
@@ -515,6 +576,9 @@ def save_records_replace_all(rows: list[dict[str, Any]], summaries: list[dict[st
         "parsed_rows": len(rows),
         "duplicated": 0,
         "sheet_stats": sheet_stats or [],
+        "verify_import_type": verify_store.get("import_type"),
+        "verify_records": len(verify_rows),
+        "verify_updated_at": verify_store.get("updated_at"),
     }
 
 
@@ -544,7 +608,7 @@ def save_excel_import_replace_all(file_bytes: bytes) -> dict[str, Any]:
     parsed = parse_excel_report(file_bytes)
     rows = parsed["rows"]
     summaries = make_summaries_from_rows(rows)
-    return save_records_replace_all(rows, summaries, "excel", parsed["sheetStats"])
+    return save_records_replace_all(rows, summaries, "excel", parsed["sheetStats"], parsed.get("debug"))
 
 
 def get_money_totals_from_weekly_summaries(store: dict[str, Any]) -> dict[str, Any]:
@@ -746,7 +810,7 @@ form.addEventListener('submit', async event => {
   const file = fileInput.files && fileInput.files[0];
   if(file){ fd.append('file', file); }
   statusBox.textContent = 'กำลังเคลียร์ข้อมูลเดิมทั้งหมด และบันทึกข้อมูลชุดใหม่...';
-  const res = await fetch('/api/import', {method:'POST', body:fd});
+  const res = await fetch('/api/import/text', {method:'POST', body:fd});
   const data = await res.json();
   if(!res.ok){statusBox.textContent = data.detail || 'บันทึกไม่สำเร็จ';return;}
   statusBox.textContent =
@@ -770,8 +834,8 @@ async function doImport(mode){
       return;
     }
     fd.append('file', file, file.name);
-    statusBox.textContent='กำลัง Import Excel โดยตรงไปที่ /api/import/excel-final\nไฟล์: '+file.name+'\nขนาด: '+file.size.toLocaleString('th-TH')+' bytes';
-    const res = await fetch('/api/import/excel-final', {method:'POST', body:fd});
+    statusBox.textContent='กำลัง Import Excel โดยตรงไปที่ /api/import/excel\nไฟล์: '+file.name+'\nขนาด: '+file.size.toLocaleString('th-TH')+' bytes';
+    const res = await fetch('/api/import/excel', {method:'POST', body:fd});
     const data = await res.json();
     if(!res.ok){ statusBox.textContent=data.detail || 'Import Excel ไม่สำเร็จ'; return; }
     statusBox.textContent='✅ Import Excel สำเร็จ\nประเภท Import: '+data.import_type+'\nVerify GitHub: '+(data.verify_import_type||'-')+' / '+(data.verify_records||0)+' records\nบันทึกข้อมูลใหม่: '+data.inserted+' รายการ\n\nเปิด /api/debug/import-flow เพื่อตรวจสอบ';
@@ -1022,6 +1086,46 @@ def dashboard_page() -> str:
     return DASHBOARD_HTML
 
 
+@app.post("/api/import/text")
+async def api_import_text(token: str = Form(...), raw_text: str = Form(""), file: UploadFile | None = File(default=None)) -> JSONResponse:
+    if token != ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
+    text = raw_text.strip()
+    if file and file.filename:
+        filename = file.filename.lower()
+        if not filename.endswith(".txt"):
+            raise HTTPException(status_code=400, detail="Text endpoint รับเฉพาะไฟล์ .txt หรือ raw_text เท่านั้น")
+        content = await file.read()
+        text = content.decode("utf-8-sig", errors="ignore").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="ไม่พบข้อมูล Text สำหรับ Import")
+    logger.info("Text import endpoint called")
+    result = save_import_replace_all(text)
+    result["endpoint"] = "/api/import/text"
+    return JSONResponse({"ok": True, **result})
+
+
+@app.post("/api/import/excel")
+async def api_import_excel(token: str = Form(...), file: UploadFile = File(...)) -> JSONResponse:
+    if token != ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
+
+    filename = file.filename or ""
+    validate_excel_upload_name_v68(filename)
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="ไฟล์ Excel ว่าง หรือไม่ได้ถูกส่งขึ้น server")
+
+    logger.info("Excel import endpoint called filename=%s size=%s", filename, len(content))
+    result = save_excel_import_replace_all(content)
+    result["import_type"] = "excel"
+    result["endpoint"] = "/api/import/excel"
+    result["filename"] = filename
+    result["file_size"] = len(content)
+    return JSONResponse({"ok": True, **result})
+
+
 @app.post("/api/import")
 async def api_import(
     token: str = Form(...),
@@ -1033,21 +1137,22 @@ async def api_import(
 
     if file and file.filename:
         filename = file.filename.lower()
-        content = await file.read()
-        if filename.endswith((".xlsx", ".xls")):
-            result = save_excel_import_replace_all(content)
-            return JSONResponse({"ok": True, **result})
+        if filename.endswith((".xlsx", ".xlsm", ".xls")):
+            raise HTTPException(status_code=400, detail="Excel ต้องเรียกผ่าน /api/import/excel เท่านั้น เพื่อป้องกัน Flow ปนกับ Text")
         if filename.endswith(".txt"):
+            content = await file.read()
             text = content.decode("utf-8-sig", errors="ignore").strip()
             if not text:
                 raise HTTPException(status_code=400, detail="ไฟล์ Text ไม่มีข้อมูล")
             result = save_import_replace_all(text)
+            result["endpoint"] = "/api/import"
             return JSONResponse({"ok": True, **result})
 
     text = raw_text.strip()
     if not text:
-        raise HTTPException(status_code=400, detail="ไม่พบข้อมูลรายงาน กรุณาวาง Text หรือเลือกไฟล์ Excel")
+        raise HTTPException(status_code=400, detail="ไม่พบข้อมูล Text กรุณาวาง Text หรือเรียก Excel ผ่าน /api/import/excel")
     result = save_import_replace_all(text)
+    result["endpoint"] = "/api/import"
     return JSONResponse({"ok": True, **result})
 
 
@@ -1073,16 +1178,17 @@ def api_dashboard(
 @app.get("/api/health")
 def api_health() -> JSONResponse:
     store, _ = read_github_store()
+    rows = store.get("daily_records", [])
+    actual_company_summary = build_company_summary(rows)
     return JSONResponse({
         "ok": True,
         "storage": "github_json",
         "github_repo": GITHUB_REPO,
         "github_file": GITHUB_FILE,
         "github_branch": GITHUB_BRANCH,
-        "daily_records": len(store.get("daily_records", [])),
+        "daily_records": len(rows),
         "weekly_summaries": len(store.get("weekly_summaries", [])),
         "updated_at": store.get("updated_at"),
-        "companyAmounts": money_totals.get("company", {}),
         "importType": store.get("import_type", ""),
         "companySummary": actual_company_summary,
         "cache_ttl_seconds": CACHE_TTL_SECONDS,
@@ -1180,8 +1286,9 @@ def api_debug_import_flow() -> JSONResponse:
         "import_type": store.get("import_type"),
         "updated_at": store.get("updated_at"),
         "records": len(rows),
-        "has_amount_fields": bool(rows and ("net_amount" in rows[0] or "collected_amount" in rows[0])),
+        "has_amount_fields": bool(rows and ("net_amount" in rows[0] and "collected_amount" in rows[0])),
         "first_record_keys": list(rows[0].keys()) if rows else [],
         "first_record": rows[0] if rows else None,
         "sheet_stats": store.get("sheet_stats", []),
+        "import_debug": store.get("import_debug", {}),
     })
