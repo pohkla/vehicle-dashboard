@@ -7,7 +7,7 @@ import time
 import urllib.request
 import urllib.error
 import openpyxl
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from pathlib import Path
 from typing import Any
 from io import BytesIO
@@ -23,9 +23,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-PROJECT_NAME = "vehicle-dashboard"
-APP_VERSION = "v6.11-full-backend-clear-data-excel-final"
-app = FastAPI(title=f"Vehicle Dashboard {APP_VERSION}")
+app = FastAPI(title="Vehicle Dashboard v6.8 Import Flow Final Fix")
 
 
 def github_enabled() -> bool:
@@ -225,7 +223,7 @@ def parse_report(raw_text: str) -> dict[str, Any]:
                     "vehicleTitle": current_meta["title"],
                     "icon": current_meta["icon"],
                     "company": current_company or "",
-                    "companyGroup": infer_company_group(current_meta["key"], current_company or "", item_text),
+                    "companyGroup": map_company_group(current_meta["key"], current_company or ""),
                     "item": item_text,
                     "netAmount": 0,
                     "collectedAmount": 0,
@@ -243,98 +241,61 @@ def parse_report(raw_text: str) -> dict[str, Any]:
 
 
 def normalize_header(value: Any) -> str:
-    """Normalize Excel headers for Thai/English fuzzy matching."""
-    text = str(value or "").strip().lower()
+    text = str(value or "").strip()
     text = text.replace("\n", "").replace("\r", "")
     text = text.replace(" ", "").replace("\u00a0", "")
     text = text.replace("ํ", "")  # normalize rare Thai mark typo in บริษํท
-    text = text.replace("/", "").replace("-", "").replace("_", "")
-    text = text.replace("(", "").replace(")", "")
     return text
 
 
-def header_matches(header: str, aliases: list[str]) -> bool:
-    if not header:
-        return False
-    for alias in aliases:
-        a = normalize_header(alias)
-        if a and (header == a or a in header or header in a):
-            return True
-    return False
-
-
 def find_header_row(ws) -> tuple[int | None, dict[str, int]]:
-    # ใช้ fuzzy match เพื่อรองรับ Excel จริงที่มักมีเว้นวรรค/ขึ้นบรรทัด/ชื่อคอลัมน์ยาวกว่า alias
     required_aliases = {
-        "date": ["วันที่", "วันที", "date", "วันที่ทำรายการ"],
-        "vehicle_type": ["ประเภทรถ", "ประเภท", "vehicletype", "type", "ชนิดรถ"],
-        "company": ["บริษัท", "บริษํท", "company", "insurer", "ประกัน", "เจ้าของงาน"],
-        "item": ["รหัส", "เลขกรมธรรม์", "รายการ", "ทะเบียน", "เลขที่", "policy", "item"],
-        "net_amount": ["ยอดสุทธิ", "สุทธิ", "ยอดเงินสุทธิ", "net", "netamount", "amountnet"],
-        "collected_amount": ["ยอดเก็บจริง", "ยอดเก็บ", "เก็บจริง", "ยอดรับจริง", "collected", "collectedamount", "paid", "receive"],
+        "date": ["วันที่", "วันที"],
+        "vehicle_type": ["ประเภทรถ", "ประเภท"],
+        "company": ["บริษัท", "บริษํท"],
+        "item": ["รหัส", "เลขกรมธรรม์", "รายการ"],
+        "net_amount": ["ยอดสุทธิ", "สุทธิ", "ยอดเงินสุทธิ", "Net", "net"],
+        "collected_amount": ["ยอดเก็บจริง", "ยอดเก็บ", "เก็บจริง", "ยอดรับจริง", "Collected", "collected"],
     }
 
-    for row_idx in range(1, min(ws.max_row, 30) + 1):
+    for row_idx in range(1, min(ws.max_row, 20) + 1):
         header_map: dict[str, int] = {}
-        headers = [normalize_header(ws.cell(row_idx, col_idx).value) for col_idx in range(1, ws.max_column + 1)]
+        normalized = {
+            normalize_header(ws.cell(row_idx, col_idx).value): col_idx
+            for col_idx in range(1, ws.max_column + 1)
+        }
 
         for key, aliases in required_aliases.items():
-            for idx, header in enumerate(headers, start=1):
-                if header_matches(header, aliases):
-                    header_map[key] = idx
+            for alias in aliases:
+                alias_norm = normalize_header(alias)
+                if alias_norm in normalized:
+                    header_map[key] = normalized[alias_norm]
                     break
 
-        # บริษัทไม่บังคับ เพราะไฟล์จริงบางชุดมีเฉพาะประเภทรถ + รหัส + ยอดเงิน
-        # net_amount ไม่บังคับ ถ้าไม่มีจะใช้ยอดเก็บจริงแทนเพื่อไม่ให้ Dashboard เป็น 0
-        must_have = ["date", "vehicle_type", "item", "collected_amount"]
+        must_have = ["date", "vehicle_type", "company", "item", "collected_amount"]
         if all(key in header_map for key in must_have):
             return row_idx, header_map
 
     return None, {}
 
+
 def parse_excel_date(value: Any) -> tuple[str, str]:
     if value is None or value == "":
         return "", ""
 
-    def format_date_obj(dt: date) -> tuple[str, str]:
-        # ถ้า Excel เก็บปีเป็น พ.ศ. เช่น 2569 ให้แปลงเป็น ค.ศ. สำหรับ isoDate
-        display_year = dt.year if dt.year > 2400 else dt.year + 543
-        iso_year = dt.year - 543 if dt.year > 2400 else dt.year
-        return f"{dt.day:02d}/{dt.month:02d}/{display_year}", f"{iso_year:04d}-{dt.month:02d}-{dt.day:02d}"
-
     if isinstance(value, datetime):
-        return format_date_obj(value.date())
+        y = value.year + 543 if value.year < 2400 else value.year
+        return f"{value.day:02d}/{value.month:02d}/{y}", f"{value.year:04d}-{value.month:02d}-{value.day:02d}"
 
     if isinstance(value, date):
-        return format_date_obj(value)
-
-    # รองรับ Excel serial date ทั้งแบบ ค.ศ. และกรณีต้นทางกรอกปี พ.ศ.
-    # ตัวอย่างไฟล์จริง: 20/04/2569 ถูกอ่านเป็น 244459
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        serial = int(value)
-        if 20000 <= serial <= 300000:
-            try:
-                dt = date(1899, 12, 30) + timedelta(days=serial)
-                return format_date_obj(dt)
-            except Exception:
-                pass
+        y = value.year + 543 if value.year < 2400 else value.year
+        return f"{value.day:02d}/{value.month:02d}/{y}", f"{value.year:04d}-{value.month:02d}-{value.day:02d}"
 
     text = str(value).strip()
     if not text:
         return "", ""
 
     text = text.replace("-", "/").replace(".", "/")
-
-    # รองรับเลขวันที่แบบ 25690420 หรือ 20260420
-    compact = text.replace("/", "").strip()
-    if compact.isdigit() and len(compact) == 8:
-        y = int(compact[:4])
-        m = int(compact[4:6])
-        d = int(compact[6:8])
-        iso_y = y - 543 if y > 2400 else y
-        display_y = y if y > 2400 else y + 543
-        return f"{d:02d}/{m:02d}/{display_y}", f"{iso_y:04d}-{m:02d}-{d:02d}"
-
     parts = [p for p in text.split("/") if p]
     if len(parts) == 3 and all(p.isdigit() for p in parts):
         d, m, y = [int(p) for p in parts]
@@ -371,21 +332,13 @@ def map_excel_vehicle_type(value: Any) -> dict[str, str] | None:
 
 
 def map_company_group(vehicle_type: str, company: str) -> str:
-    return infer_company_group(vehicle_type, company, "")
-
-
-def infer_company_group(vehicle_type: str, company: str = "", item: str = "") -> str:
-    # ใช้ฟิลด์บริษัทจาก Excel/Text เป็นหลักเท่านั้น
-    # ห้าม map บริษัทจากรหัสกรมธรรม์/รหัสรถ เพราะไฟล์ต้นทางมีคอลัมน์บริษัทอยู่แล้ว
-    c = (company or "").lower().replace(" ", "").replace(".", "")
-    if not c:
-        return "UNKNOWN"
-    if "ergo" in c or "เออร์โก" in c:
-        return "ERGO"
-    if "ไทยไพบูลย์" in c or "tpb" in c or "ไพบูลย์" in c:
-        return "TPB"
-    if "rvp" in c or "บริษัทกลาง" in c or "กลาง" in c:
+    c = (company or "").lower()
+    if vehicle_type == "motorcycle":
         return "RVP"
+    if "ergo" in c:
+        return "ERGO"
+    if "ไทยไพบูลย์" in c or "tpb" in c:
+        return "TPB"
     return "UNKNOWN"
 
 
@@ -412,12 +365,10 @@ def parse_excel_report(file_bytes: bytes) -> dict[str, Any]:
         for r in range(header_row + 1, ws.max_row + 1):
             raw_date = ws.cell(r, col["date"]).value
             raw_vehicle = ws.cell(r, col["vehicle_type"]).value
-            raw_company = ws.cell(r, col["company"]).value if "company" in col else ""
+            raw_company = ws.cell(r, col["company"]).value
             raw_item = ws.cell(r, col["item"]).value
-            raw_net = ws.cell(r, col["net_amount"]).value if "net_amount" in col else None
+            raw_net = ws.cell(r, col.get("net_amount", col["collected_amount"])).value
             raw_collected = ws.cell(r, col["collected_amount"]).value
-            if raw_net in (None, ""):
-                raw_net = raw_collected
 
             date_text, iso_date = parse_excel_date(raw_date)
             if date_text and iso_date:
@@ -453,7 +404,7 @@ def parse_excel_report(file_bytes: bytes) -> dict[str, Any]:
                 "vehicleTitle": meta["title"],
                 "icon": meta["icon"],
                 "company": company,
-                "companyGroup": infer_company_group(meta["key"], company, item),
+                "companyGroup": map_company_group(meta["key"], company),
                 "item": item,
                 "netAmount": net_amount,
                 "collectedAmount": collected_amount,
@@ -477,7 +428,7 @@ def make_summaries_from_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
     for row in rows:
         amount = float(row.get("collectedAmount", 0) or 0)
         vehicle_type = row.get("vehicleType", "")
-        company_group = row.get("companyGroup") or infer_company_group(vehicle_type, row.get("company", ""), row.get("item", ""))
+        company_group = row.get("companyGroup") or map_company_group(vehicle_type, row.get("company", ""))
 
         if vehicle_type == "motorcycle":
             vehicle_summary["motorcycle"] += amount
@@ -523,7 +474,7 @@ def save_records_replace_all(rows: list[dict[str, Any]], summaries: list[dict[st
             "vehicle_title": row.get("vehicleTitle", ""),
             "icon": row.get("icon", ""),
             "company": company,
-            "company_group": row.get("companyGroup") or infer_company_group(vehicle_type, company, row.get("item", "")),
+            "company_group": row.get("companyGroup") or map_company_group(vehicle_type, company),
             "item": row.get("item", ""),
             "net_amount": float(row.get("netAmount", 0) or 0),
             "collected_amount": float(row.get("collectedAmount", 0) or 0),
@@ -532,7 +483,7 @@ def save_records_replace_all(rows: list[dict[str, Any]], summaries: list[dict[st
         })
 
     store = {
-        "version": APP_VERSION,
+        "version": 2,
         "updated_at": now,
         "import_type": import_type,
         "daily_records": records,
@@ -542,7 +493,7 @@ def save_records_replace_all(rows: list[dict[str, Any]], summaries: list[dict[st
             {
                 "vehicle_type": r.get("vehicleType", ""),
                 "company": r.get("company", ""),
-                "company_group": r.get("companyGroup") or infer_company_group(r.get("vehicleType", ""), r.get("company", ""), r.get("item", "")),
+                "company_group": r.get("companyGroup") or map_company_group(r.get("vehicleType", ""), r.get("company", "")),
                 "net_amount": r.get("netAmount", 0),
                 "collected_amount": r.get("collectedAmount", 0),
             }
@@ -595,29 +546,6 @@ def save_excel_import_replace_all(file_bytes: bytes) -> dict[str, Any]:
     summaries = make_summaries_from_rows(rows)
     return save_records_replace_all(rows, summaries, "excel", parsed["sheetStats"])
 
-def clear_data_store() -> dict[str, Any]:
-    now = datetime.utcnow().isoformat()
-    store, sha = read_github_store()
-    old_record_count = len(store.get("daily_records", []))
-    old_summary_count = len(store.get("weekly_summaries", []))
-    cleared = {
-        "version": APP_VERSION,
-        "updated_at": now,
-        "import_type": "cleared",
-        "daily_records": [],
-        "weekly_summaries": [],
-        "sheet_stats": [],
-        "import_summary": build_company_summary([]),
-        "cleared_at": now,
-    }
-    write_github_store(cleared, sha, f"clear vehicle dashboard data {now}")
-    clear_dashboard_cache()
-    return {
-        "deleted_records": old_record_count,
-        "deleted_summaries": old_summary_count,
-        "updated_at": now,
-    }
-
 
 def get_money_totals_from_weekly_summaries(store: dict[str, Any]) -> dict[str, Any]:
     summaries = store.get("weekly_summaries", [])
@@ -662,7 +590,7 @@ def build_company_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     for row in rows:
         vehicle_type = row.get("vehicle_type") or row.get("vehicleType") or ""
         company = row.get("company", "")
-        group = row.get("company_group") or row.get("companyGroup") or infer_company_group(vehicle_type, company, row.get("item", ""))
+        group = row.get("company_group") or row.get("companyGroup") or map_company_group(vehicle_type, company)
         if group not in summary:
             group = "UNKNOWN"
 
@@ -724,7 +652,7 @@ def get_dashboard_data(start: str | None = None, end: str | None = None, q: str 
         company = row.get("company", "") or ""
         group_key = f"{vehicle_type}|{company}"
         if group_key not in day["groups"]:
-            day["groups"][group_key] = {"key": vehicle_type, "icon": row.get("icon", ""), "title": row.get("vehicle_title", ""), "company": company, "companyGroup": row.get("company_group") or infer_company_group(vehicle_type, company, row.get("item", "")), "items": []}
+            day["groups"][group_key] = {"key": vehicle_type, "icon": row.get("icon", ""), "title": row.get("vehicle_title", ""), "company": company, "items": []}
         day["groups"][group_key]["items"].append(row.get("item", ""))
         if vehicle_type in ("motorcycle", "pickup", "sedan"):
             day[vehicle_type] += 1
@@ -758,8 +686,6 @@ def get_dashboard_data(start: str | None = None, end: str | None = None, q: str 
         "companyAmounts": money_totals.get("company", {}),
         "importType": store.get("import_type", ""),
         "companySummary": actual_company_summary,
-        "appVersion": APP_VERSION,
-        "projectName": PROJECT_NAME,
     }
 
 
@@ -773,7 +699,7 @@ ADMIN_HTML = """
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--cyan:#14b8a6;--line:#e5e7eb;--shadow:0 16px 40px rgba(15,23,42,.08)}
-*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.wrap{width:min(980px,94vw);margin:auto;padding:32px 0}.card{background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border-radius:28px;padding:26px;box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9)}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:28px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:34px}.hero p{margin:0;opacity:.9}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid var(--line)}textarea{width:100%;height:440px;border:1px solid var(--line);border-radius:18px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}input{padding:12px 14px;border:1px solid var(--line);border-radius:14px;font-family:Prompt,sans-serif}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 12px 22px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn2{background:#eff6ff;color:#1d4ed8;box-shadow:none}.btn-danger{background:linear-gradient(135deg,#dc2626,#f97316);box-shadow:0 12px 22px rgba(220,38,38,.18)}.status{margin-top:16px;color:#172033;white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:18px;padding:14px;line-height:1.65;font-weight:600}.hint{padding:12px 14px;background:#eff6ff;color:#1d4ed8;border-radius:14px;margin:12px 0;font-size:14px}.danger{background:#fff7ed;color:#9a3412}
+*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.wrap{width:min(980px,94vw);margin:auto;padding:32px 0}.card{background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border-radius:28px;padding:26px;box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9)}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:28px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:34px}.hero p{margin:0;opacity:.9}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid var(--line)}textarea{width:100%;height:440px;border:1px solid var(--line);border-radius:18px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}input{padding:12px 14px;border:1px solid var(--line);border-radius:14px;font-family:Prompt,sans-serif}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 12px 22px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn2{background:#eff6ff;color:#1d4ed8;box-shadow:none}.status{margin-top:16px;color:#172033;white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:18px;padding:14px;line-height:1.65;font-weight:600}.hint{padding:12px 14px;background:#eff6ff;color:#1d4ed8;border-radius:14px;margin:12px 0;font-size:14px}.danger{background:#fff7ed;color:#9a3412}
 </style>
 </head>
 <body>
@@ -786,12 +712,11 @@ ADMIN_HTML = """
     <form id="form">
       <div class="row" style="margin-bottom:12px">
         <input type="password" id="token" placeholder="Admin Token" required>
-        <input type="file" id="file" accept=".txt,.xlsx,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        <input type="file" id="file" accept=".txt,.xlsx,.xls,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
       </div>
       <textarea id="raw_text" placeholder="วางข้อมูล Text เดิม หรือเลือกไฟล์ Excel (.xlsx) เพื่อ Import ได้เลย..."></textarea>
       <div class="row">
-        <button class="btn" type="submit">เคลียร์ข้อมูลเดิมทั้งหมดและบันทึกชุดใหม่</button>
-        <button class="btn btn-danger" type="button" id="clearDataBtn">เคลียร์ข้อมูลทั้งหมด</button>
+        <button class="btn" type="button" id="importExcelBtn">Import Excel</button><button class="btn btn2" type="submit">Import Text</button>
         <a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard Only</a>
       </div>
     </form>
@@ -809,25 +734,19 @@ fileInput.addEventListener('change', async event => {
   const name = file.name.toLowerCase();
   if(name.endsWith('.txt')){
     rawText.value = await file.text();
-  }else if(name.endsWith('.xlsx')){
+  }else if(name.endsWith('.xlsx') || name.endsWith('.xls')){
     statusBox.textContent = 'เลือกไฟล์ Excel แล้ว: ' + file.name + '\nระบบจะอ่านทุกชีตที่มี header ถูกต้อง และข้ามชีต Dropdown อัตโนมัติ';
   }
 });
 form.addEventListener('submit', async event => {
   event.preventDefault();
   const fd = new FormData();
+  fd.append('raw_text', rawText.value);
   fd.append('token', document.getElementById('token').value);
   const file = fileInput.files && fileInput.files[0];
-  let endpoint = '/api/import/text';
-  if(file){
-    fd.append('file', file);
-    const name = file.name.toLowerCase();
-    endpoint = (name.endsWith('.xlsx')) ? '/api/import/excel' : '/api/import';
-  }else{
-    fd.append('raw_text', rawText.value);
-  }
+  if(file){ fd.append('file', file); }
   statusBox.textContent = 'กำลังเคลียร์ข้อมูลเดิมทั้งหมด และบันทึกข้อมูลชุดใหม่...';
-  const res = await fetch(endpoint, {method:'POST', body:fd});
+  const res = await fetch('/api/import', {method:'POST', body:fd});
   const data = await res.json();
   if(!res.ok){statusBox.textContent = data.detail || 'บันทึกไม่สำเร็จ';return;}
   statusBox.textContent =
@@ -839,18 +758,27 @@ form.addEventListener('submit', async event => {
     'อัปเดตยอดสรุปรายสัปดาห์: ' + data.replaced_summaries + ' ชุด';
 });
 
-document.getElementById('clearDataBtn').addEventListener('click', async () => {
-  const token = document.getElementById('token').value;
-  if(!token){statusBox.textContent = 'กรุณากรอก Admin Token ก่อนเคลียร์ข้อมูล'; return;}
-  if(!confirm('ยืนยันเคลียร์ข้อมูลทั้งหมดใน data.json?')) return;
+async function doImport(mode){
   const fd = new FormData();
-  fd.append('token', token);
-  statusBox.textContent = 'กำลังเคลียร์ข้อมูลทั้งหมด...';
-  const res = await fetch('/api/data/clear', {method:'POST', body:fd});
-  const data = await res.json();
-  if(!res.ok){statusBox.textContent = data.detail || 'เคลียร์ข้อมูลไม่สำเร็จ'; return;}
-  statusBox.textContent = 'เคลียร์ข้อมูลสำเร็จ\nลบรายการเดิม: ' + data.deleted_records + ' รายการ\nลบยอดสรุปเดิม: ' + data.deleted_summaries + ' ชุด';
-});
+  fd.append('token', document.getElementById('token').value);
+  if(mode === 'excel'){
+    const file = fileInput.files && fileInput.files[0];
+    if(!file){ statusBox.textContent='กรุณาเลือกไฟล์ Excel ก่อน'; return; }
+    const lower = file.name.toLowerCase();
+    if(!(lower.endsWith('.xlsx') || lower.endsWith('.xlsm') || lower.endsWith('.xls'))){
+      statusBox.textContent='ไฟล์ที่เลือกไม่ใช่ Excel: '+file.name;
+      return;
+    }
+    fd.append('file', file, file.name);
+    statusBox.textContent='กำลัง Import Excel โดยตรงไปที่ /api/import/excel-final\nไฟล์: '+file.name+'\nขนาด: '+file.size.toLocaleString('th-TH')+' bytes';
+    const res = await fetch('/api/import/excel-final', {method:'POST', body:fd});
+    const data = await res.json();
+    if(!res.ok){ statusBox.textContent=data.detail || 'Import Excel ไม่สำเร็จ'; return; }
+    statusBox.textContent='✅ Import Excel สำเร็จ\nประเภท Import: '+data.import_type+'\nVerify GitHub: '+(data.verify_import_type||'-')+' / '+(data.verify_records||0)+' records\nบันทึกข้อมูลใหม่: '+data.inserted+' รายการ\n\nเปิด /api/debug/import-flow เพื่อตรวจสอบ';
+  }
+}
+document.getElementById('importExcelBtn')?.addEventListener('click',()=>doImport('excel'));
+
 </script>
 </body>
 </html>
@@ -892,7 +820,6 @@ DASHBOARD_HTML = """
 .company-kpi[data-company="TOTAL"]{border-left:5px solid #111827}
 .company-kpi.active{transform:translateY(-8px) scale(1.025);box-shadow:0 0 0 3px rgba(37,99,235,.12),0 28px 60px rgba(37,99,235,.2);border-color:#bfdbfe}
 .company-kpi.dim{opacity:.58}
-.version-badge{position:fixed;right:8px;bottom:6px;font-size:9px;font-weight:700;color:#94a3b8;background:rgba(255,255,255,.72);border:1px solid rgba(226,232,240,.8);border-radius:999px;padding:3px 7px;z-index:9999;pointer-events:none}
 @media(max-width:980px){.hero,.section-grid,.daily-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.kpi-grid{grid-template-columns:1fr}.filter-group,.date-input,.date-select,.search-input,.btn{width:100%}.amount,.hybrid-total{font-size:38px}.day-head{align-items:flex-start}.day-tags{justify-content:flex-start}}
 </style></head>
 <body><main class="page">
@@ -939,31 +866,26 @@ DASHBOARD_HTML = """
 <section class="section-grid"><div class="panel"><h2>จำนวนรถรายวัน แยกตามบริษัท</h2><div class="chart-wrap"><canvas id="dailyChart"></canvas></div></div><div class="hybrid-card"><div class="hybrid-head"><div><h2 style="margin:0">สัดส่วนประเภทรถ</h2></div><div><div class="hybrid-total" id="hybridTotal">0</div><div class="hybrid-label">คันทั้งหมด</div></div></div><div class="breakdown-list" id="breakdownList"></div></div></section>
 <section class="toolbar"><h2>รายการแยกรายวัน</h2><div class="filter-group"><input class="search-input" id="searchBox" placeholder="ค้นหาทะเบียน / เลขกรมธรรม์ / บริษัท"><select class="date-select" id="dateFilter"><option value="all">ดูทั้งหมด</option></select><button class="btn" id="showDateBtn">แสดงวันที่เลือก</button><button class="btn btn2" id="showAllBtn">ดูทั้งหมด</button><button class="btn btnToggle active" id="detailModeBtn">📄 Detail</button><button class="btn btnToggle" id="compactModeBtn">⚡ Compact</button><button class="btn btnDark" id="exportPdfBtn">Export PDF</button><button class="btn btnDark" id="exportExcelBtn">Export Excel</button></div></section>
 <section class="daily-grid" id="cards"></section><div class="pagination"><button class="btn btn2" id="prevPageBtn">ก่อนหน้า</button><span class="page-info" id="pageInfo">Page 1</span><button class="btn btn2" id="nextPageBtn">ถัดไป</button></div><p class="status-pill" id="status">Loading...</p>
-<div class="version-badge" id="versionBadge">vehicle-dashboard</div>
 </main>
 <script>
-const PROJECT_NAME='vehicle-dashboard';const APP_VERSION='v6.11-full-backend-clear-data-excel-final';let report=null,allDays=[],filteredDays=[],viewDays=[],dailyChart=null;let currentPage=1,pageSize=8,viewMode='detail',activeSelected='all';const box=id=>document.getElementById(id);const money=n=>Math.round(n||0).toLocaleString('th-TH');function destroy(){if(dailyChart)dailyChart.destroy()}function setupRange(){const dates=allDays.map(d=>d.isoDate).filter(Boolean).sort();box('startDate').value=dates[0]||'';box('endDate').value=dates[dates.length-1]||''}function flattenRows(days){const rows=[];days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item}))));return rows}
+let report=null,allDays=[],filteredDays=[],viewDays=[],dailyChart=null;let currentPage=1,pageSize=8,viewMode='detail',activeSelected='all';const box=id=>document.getElementById(id);const money=n=>Math.round(n||0).toLocaleString('th-TH');function destroy(){if(dailyChart)dailyChart.destroy()}function setupRange(){const dates=allDays.map(d=>d.isoDate).filter(Boolean).sort();box('startDate').value=dates[0]||'';box('endDate').value=dates[dates.length-1]||''}function flattenRows(days){const rows=[];days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item}))));return rows}
 function animateNumber(el,target){const end=Number(target)||0;const start=Number((el.textContent||'0').replace(/,/g,''))||0;const duration=420;const t0=performance.now();function tick(now){const p=Math.min(1,(now-t0)/duration);const eased=1-Math.pow(1-p,3);el.textContent=money(start+(end-start)*eased);if(p<1)requestAnimationFrame(tick);else el.textContent=money(end)}requestAnimationFrame(tick)}
 function colorWithAlpha(hex,alpha){const map={'#2563eb':'37,99,235','#f97316':'249,115,22','#dc2626':'220,38,38','#16a34a':'22,163,74','#0ea5e9':'14,165,233','#111827':'17,24,39'};return `rgba(${map[hex]||'37,99,235'},${alpha})`}function applyChartHighlight(index){if(!dailyChart)return;const colors=['#2563eb','#f97316','#16a34a'];dailyChart.data.datasets.forEach((ds,di)=>{if(ds.type==='line'){ds.borderColor=index==null?'#111827':colorWithAlpha('#111827',.95);ds.backgroundColor=ds.borderColor;ds.pointBackgroundColor=ds.data.map((_,i)=>index==null||i===index?'#111827':colorWithAlpha('#111827',.18));return}ds.backgroundColor=ds.data.map((_,i)=>index==null||i===index?colors[di]:colorWithAlpha(colors[di],.18))});dailyChart.update('none')}
-function companyGroupOf(g){
- const explicit=(g.companyGroup||g.company_group||'').toUpperCase();
- if(['RVP','ERGO','TPB'].includes(explicit))return explicit;
- const company=(g.company||'').toLowerCase().replaceAll(' ','');
- if(company.includes('ergo'))return 'ERGO';
- if(company.includes('ไทยไพบูลย์') || company.includes('tpb') || company.includes('ไพบูลย์'))return 'TPB';
- if(company.includes('rvp') || company.includes('บริษัทกลาง') || company.includes('กลาง'))return 'RVP';
- return 'UNKNOWN';
-}
 function getCompanyData(){
  return filteredDays.map(day=>{
    let RVP=0, ERGO=0, TPB=0, UNKNOWN=0;
    (day.groups||[]).forEach(g=>{
+     const company=(g.company||'').toLowerCase();
      const count=(g.items&&g.items.length)?g.items.length:(g.count||0);
-     const group=companyGroupOf(g);
-     if(group==='RVP')RVP+=count;
-     else if(group==='ERGO')ERGO+=count;
-     else if(group==='TPB')TPB+=count;
-     else UNKNOWN+=count;
+     if(g.key==='motorcycle'){
+       RVP += count;
+     }else if(company.includes('ergo')){
+       ERGO += count;
+     }else if(company.includes('ไทยไพบูลย์') || company.includes('tpb')){
+       TPB += count;
+     }else{
+       UNKNOWN += count;
+     }
    });
    return {date:day.date,label:day.date.slice(0,5),RVP,ERGO,TPB,UNKNOWN,total:RVP+ERGO+TPB+UNKNOWN};
  });
@@ -1075,10 +997,10 @@ function getDayMeta(list,day){const totals=list.map(d=>d.motorcycle+d.pickup+d.s
 function buildDetails(day){return day.groups.map(g=>`<div class="vehicle-group"><div class="vehicle-title">${g.icon} ${g.title} (${g.items.length} คัน)</div>${g.company?`<span class="company">${g.company}</span>`:''}<ul>${g.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`).join('')}
 function toggleDay(btn,index){const card=btn.closest('.day-card');const body=card.querySelector('.day-body');if(card.classList.contains('open')){card.classList.remove('open');return}if(!body.dataset.loaded){const day=viewDays[index];body.innerHTML=buildDetails(day);body.dataset.loaded='1'}card.classList.add('open')}
 function renderCards(selected='all'){activeSelected=selected;const list=getCardList(selected);viewDays=list;const totalPages=Math.max(1,Math.ceil(list.length/pageSize));if(currentPage>totalPages)currentPage=totalPages;const start=(currentPage-1)*pageSize;const pageItems=list.slice(start,start+pageSize);box('cards').classList.toggle('compact',viewMode==='compact');box('pageInfo').textContent=`หน้า ${currentPage}/${totalPages} • แสดง ${pageItems.length}/${list.length} วัน`;box('prevPageBtn').disabled=currentPage<=1;box('nextPageBtn').disabled=currentPage>=totalPages;if(!pageItems.length){box('cards').innerHTML='<article class="day-card"><button class="day-head"><span class="day-title">ไม่พบข้อมูล</span></button></article>';return}box('cards').innerHTML=pageItems.map((day,idx)=>{const globalIndex=start+idx;const meta=getDayMeta(list,day);const compact=viewMode==='compact';const open=!compact&&idx<2;const tags=meta.tags.map(t=>`<span class="badge ${t.includes('Peak')?'tag-peak':t.includes('Low')?'tag-low':'tag-high'}">${t}</span>`).join('');const summary=`<div class="quick-summary"><span class="mini-chip">🏍 ${day.motorcycle}</span><span class="mini-chip">🚛 ${day.pickup}</span><span class="mini-chip">🚗 ${day.sedan}</span></div>`;const bodyContent=open?buildDetails(day):'';return `<article class="day-card ${meta.cls} ${compact?'compact-card':''} ${open?'open':''}"><button class="day-head" onclick="toggleDay(this,${globalIndex})"><span class="day-main"><span class="day-title">📊 วันที่ ${day.date}</span>${summary}</span><span class="day-tags">${tags}<span class="badge">รวม ${meta.total} คัน</span><span class="chev">⌄</span></span></button><div class="day-body" data-loaded="${open?'1':''}">${bodyContent}</div></article>`}).join('')}
-function exportExcel(){const rows=flattenRows(viewDays.length?viewDays:filteredDays);const summaryRows=[{หมวด:'ยอดเงินรวมทั้งหมด',ยอด:box('totalAmount').textContent,หน่วย:'บาท'},{หมวด:'รถยนต์',ยอด:box('carAmount').textContent.replace(' บาท',''),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์',ยอด:box('motorAmount').textContent.replace(' บาท',''),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์',ยอด:box('motorCount').textContent,หน่วย:'คัน'},{หมวด:'รถกระบะ',ยอด:box('pickupCount').textContent,หน่วย:'คัน'},{หมวด:'รถยนต์เก๋ง',ยอด:box('sedanCount').textContent,หน่วย:'คัน'},{หมวด:'จำนวนรถรวมทั้งหมด',ยอด:box('allCount').textContent,หน่วย:'คัน'}];const wsSummary=XLSX.utils.json_to_sheet(summaryRows);const wsDetail=XLSX.utils.json_to_sheet(rows.map(r=>({วันที่:r.date,ประเภทรถ:r.type,บริษัท:r.company,รายการ:r.item})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,wsSummary,'Summary');XLSX.utils.book_append_sheet(wb,wsDetail,'Detail');XLSX.writeFile(wb, PROJECT_NAME + '.xlsx')}
+function exportExcel(){const rows=flattenRows(viewDays.length?viewDays:filteredDays);const summaryRows=[{หมวด:'ยอดเงินรวมทั้งหมด',ยอด:box('totalAmount').textContent,หน่วย:'บาท'},{หมวด:'รถยนต์',ยอด:box('carAmount').textContent.replace(' บาท',''),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์',ยอด:box('motorAmount').textContent.replace(' บาท',''),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์',ยอด:box('motorCount').textContent,หน่วย:'คัน'},{หมวด:'รถกระบะ',ยอด:box('pickupCount').textContent,หน่วย:'คัน'},{หมวด:'รถยนต์เก๋ง',ยอด:box('sedanCount').textContent,หน่วย:'คัน'},{หมวด:'จำนวนรถรวมทั้งหมด',ยอด:box('allCount').textContent,หน่วย:'คัน'}];const wsSummary=XLSX.utils.json_to_sheet(summaryRows);const wsDetail=XLSX.utils.json_to_sheet(rows.map(r=>({วันที่:r.date,ประเภทรถ:r.type,บริษัท:r.company,รายการ:r.item})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,wsSummary,'Summary');XLSX.utils.book_append_sheet(wb,wsDetail,'Detail');XLSX.writeFile(wb,'vehicle-dashboard.xlsx')}
 function escapeHtml(text){return String(text||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#039;")}
 function exportPDF(){const rows=flattenRows(viewDays.length?viewDays:filteredDays);const printedAt=new Date().toLocaleString('th-TH');const totalAmount=box('totalAmount').textContent,carAmount=box('carAmount').textContent,motorAmount=box('motorAmount').textContent,motorCount=box('motorCount').textContent,pickupCount=box('pickupCount').textContent,sedanCount=box('sedanCount').textContent;const html=['<!DOCTYPE html>','<html lang="th"><head><meta charset="UTF-8"><title>Vehicle Dashboard PDF</title>','<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">','<style>@page{size:A4 landscape;margin:12mm}body{font-family:Prompt,Arial,sans-serif;color:#172033}h1{font-size:22px;margin:0 0 6px}.meta{font-size:12px;color:#667085;margin-bottom:14px}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.card{border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#f8fafc}.label{font-size:11px;color:#667085}.value{font-size:19px;font-weight:800;color:#2563eb}.sub{font-size:11px;color:#667085}table{width:100%;border-collapse:collapse;font-size:10px}th{background:#2563eb;color:#fff;text-align:left;padding:7px}td{border-bottom:1px solid #e5e7eb;padding:6px;vertical-align:top}tr:nth-child(even) td{background:#f8fafc}.money-table{margin-bottom:14px}.money-table th{background:#111827}.money-table td{font-size:11px}</style></head><body>','<h1>Vehicle Cumulative Dashboard</h1>','<div class="meta">'+escapeHtml(box('status').textContent)+' • Export: '+escapeHtml(printedAt)+'</div>','<div class="summary">','<div class="card"><div class="label">ยอดเงินรวมทั้งหมด</div><div class="value">'+escapeHtml(totalAmount)+'</div><div class="sub">บาท</div></div>','<div class="card"><div class="label">รถจักรยานยนต์</div><div class="value">'+escapeHtml(motorCount)+'</div><div class="sub">คัน</div></div>','<div class="card"><div class="label">รถกระบะ</div><div class="value">'+escapeHtml(pickupCount)+'</div><div class="sub">คัน</div></div>','<div class="card"><div class="label">รถยนต์เก๋ง</div><div class="value">'+escapeHtml(sedanCount)+'</div><div class="sub">คัน</div></div>','</div>','<table class="money-table"><thead><tr><th>หมวดยอดเงิน</th><th>ยอด</th></tr></thead><tbody>','<tr><td>รถยนต์</td><td>'+escapeHtml(carAmount)+'</td></tr>','<tr><td>รถจักรยานยนต์</td><td>'+escapeHtml(motorAmount)+'</td></tr>','<tr><td>รวมทั้งหมด</td><td>'+escapeHtml(totalAmount)+' บาท</td></tr>','</tbody></table>','<table><thead><tr><th>วันที่</th><th>ประเภทรถ</th><th>บริษัท</th><th>รายการ</th></tr></thead><tbody>',rows.map(r=>'<tr><td>'+escapeHtml(r.date)+'</td><td>'+escapeHtml(r.type)+'</td><td>'+escapeHtml(r.company)+'</td><td>'+escapeHtml(r.item)+'</td></tr>').join(''),'</tbody></table></body></html>'].join('');const win=window.open('', '_blank');if(!win){alert('Browser บล็อก popup กรุณาอนุญาต popup แล้วลอง Export PDF อีกครั้ง');return}win.document.open();win.document.write(html);win.document.close();win.focus();setTimeout(()=>win.print(),700)}
-async function load(){box('refreshStatus').textContent='กำลังโหลดข้อมูล...';const params=new URLSearchParams();const s=box('startDate').value,e=box('endDate').value,q=box('searchBox').value.trim();if(s)params.set('start',s);if(e)params.set('end',e);if(q)params.set('q',q);const query=params.toString();const url='/api/dashboard'+(query?('?'+query+'&ts='+Date.now()):('?ts='+Date.now()));const res=await fetch(url).catch(()=>null);if(!res||!res.ok){box('status').textContent='ยังไม่มีข้อมูล';box('refreshStatus').textContent='ยังไม่มีข้อมูล';return}report=await res.json();if(box('versionBadge'))box('versionBadge').textContent=(report.projectName||PROJECT_NAME)+' '+(report.appVersion||APP_VERSION);allDays=report.dailyData;filteredDays=[...allDays];if(!s&&!e)setupRange();render(activeSelected);box('refreshStatus').textContent='ข้อมูลล่าสุดแล้ว • '+new Date().toLocaleTimeString('th-TH')}
+async function load(){box('refreshStatus').textContent='กำลังโหลดข้อมูล...';const params=new URLSearchParams();const s=box('startDate').value,e=box('endDate').value,q=box('searchBox').value.trim();if(s)params.set('start',s);if(e)params.set('end',e);if(q)params.set('q',q);const query=params.toString();const url='/api/dashboard'+(query?('?'+query+'&ts='+Date.now()):('?ts='+Date.now()));const res=await fetch(url).catch(()=>null);if(!res||!res.ok){box('status').textContent='ยังไม่มีข้อมูล';box('refreshStatus').textContent='ยังไม่มีข้อมูล';return}report=await res.json();allDays=report.dailyData;filteredDays=[...allDays];if(!s&&!e)setupRange();render(activeSelected);box('refreshStatus').textContent='ข้อมูลล่าสุดแล้ว • '+new Date().toLocaleTimeString('th-TH')}
 box('applyBtn').onclick=()=>load();box('resetBtn').onclick=()=>{box('startDate').value='';box('endDate').value='';box('searchBox').value='';activeSelected='all';load()};box('showDateBtn').onclick=()=>{currentPage=1;renderCards(box('dateFilter').value)};box('showAllBtn').onclick=()=>{box('dateFilter').value='all';currentPage=1;renderCards('all')};box('dateFilter').onchange=()=>{currentPage=1;renderCards(box('dateFilter').value)};box('searchBox').oninput=()=>{currentPage=1;clearTimeout(window.searchTimer);window.searchTimer=setTimeout(()=>load(),450)};box('prevPageBtn').onclick=()=>{if(currentPage>1){currentPage--;renderCards(box('dateFilter').value)}};box('nextPageBtn').onclick=()=>{currentPage++;renderCards(box('dateFilter').value)};box('detailModeBtn').onclick=()=>{viewMode='detail';box('detailModeBtn').classList.add('active');box('compactModeBtn').classList.remove('active');renderCards(box('dateFilter').value)};box('compactModeBtn').onclick=()=>{viewMode='compact';box('compactModeBtn').classList.add('active');box('detailModeBtn').classList.remove('active');renderCards(box('dateFilter').value)};box('exportExcelBtn').onclick=exportExcel;box('exportPdfBtn').onclick=exportPDF;load();setInterval(()=>load(),30000);
 </script></body></html>
 """
@@ -1129,34 +1051,6 @@ async def api_import(
     return JSONResponse({"ok": True, **result})
 
 
-@app.post("/api/import/excel")
-async def api_import_excel(
-    token: str = Form(...),
-    file: UploadFile = File(...),
-) -> JSONResponse:
-    if token != ADMIN_TOKEN:
-        raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
-    filename = (file.filename or "").lower()
-    if not filename.endswith(".xlsx"):
-        raise HTTPException(status_code=400, detail="รองรับ Excel .xlsx เท่านั้น กรุณา Save as เป็น .xlsx")
-    content = await file.read()
-    result = save_excel_import_replace_all(content)
-    return JSONResponse({"ok": True, **result})
-
-@app.post("/api/import/text")
-async def api_import_text(
-    token: str = Form(...),
-    raw_text: str = Form(...),
-) -> JSONResponse:
-    if token != ADMIN_TOKEN:
-        raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
-    text = raw_text.strip()
-    if not text:
-        raise HTTPException(status_code=400, detail="ไม่พบข้อมูล Text")
-    result = save_import_replace_all(text)
-    return JSONResponse({"ok": True, **result})
-
-
 @app.get("/api/dashboard")
 def api_dashboard(
     start: str | None = Query(default=None),
@@ -1179,20 +1073,18 @@ def api_dashboard(
 @app.get("/api/health")
 def api_health() -> JSONResponse:
     store, _ = read_github_store()
-    rows = store.get("daily_records", [])
-    company_summary = build_company_summary(rows)
     return JSONResponse({
         "ok": True,
         "storage": "github_json",
         "github_repo": GITHUB_REPO,
         "github_file": GITHUB_FILE,
         "github_branch": GITHUB_BRANCH,
-        "daily_records": len(rows),
+        "daily_records": len(store.get("daily_records", [])),
         "weekly_summaries": len(store.get("weekly_summaries", [])),
         "updated_at": store.get("updated_at"),
+        "companyAmounts": money_totals.get("company", {}),
         "importType": store.get("import_type", ""),
-        "companySummary": company_summary,
-        "appVersion": APP_VERSION,
+        "companySummary": actual_company_summary,
         "cache_ttl_seconds": CACHE_TTL_SECONDS,
         "cache_key": DASHBOARD_CACHE.get("key"),
     })
@@ -1204,13 +1096,6 @@ def api_cache_clear(token: str = Form(...)) -> JSONResponse:
         raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
     clear_dashboard_cache()
     return JSONResponse({"ok": True, "message": "cache cleared"})
-
-@app.post("/api/data/clear")
-def api_data_clear(token: str = Form(...)) -> JSONResponse:
-    if token != ADMIN_TOKEN:
-        raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
-    result = clear_data_store()
-    return JSONResponse({"ok": True, **result})
 
 
 @app.get("/api/github/test")
@@ -1229,24 +1114,6 @@ def api_github_test() -> JSONResponse:
 
 
 
-
-@app.get("/api/debug/raw-store")
-def api_debug_raw_store() -> JSONResponse:
-    store, sha = read_github_store()
-    return JSONResponse({
-        "ok": True,
-        "sha_exists": bool(sha),
-        "version": store.get("version"),
-        "import_type": store.get("import_type"),
-        "updated_at": store.get("updated_at"),
-        "records": len(store.get("daily_records", [])),
-        "weekly_summaries": len(store.get("weekly_summaries", [])),
-        "sheet_stats": store.get("sheet_stats", []),
-        "import_summary": store.get("import_summary", {}),
-        "sample": store.get("daily_records", [])[:10],
-        "appVersion": APP_VERSION,
-    })
-
 @app.get("/api/debug/company-summary")
 def api_debug_company_summary() -> JSONResponse:
     store, _ = read_github_store()
@@ -1258,9 +1125,63 @@ def api_debug_company_summary() -> JSONResponse:
         "records": len(rows),
         "companySummary": build_company_summary(rows),
         "sample": rows[:3],
-        "appVersion": APP_VERSION,
     })
 
 @app.get("/api/report/latest")
 def api_latest_report() -> JSONResponse:
     return api_dashboard()
+
+
+# ============================================================
+# v6.8 FINAL FIX: Explicit Excel import flow
+# ============================================================
+
+def validate_excel_upload_name_v68(filename: str) -> None:
+    lower = (filename or "").lower()
+    if not lower.endswith((".xlsx", ".xlsm", ".xls")):
+        raise HTTPException(status_code=400, detail=f"ไฟล์ไม่ใช่ Excel: {filename}")
+
+
+@app.post("/api/import/excel-final")
+async def api_import_excel_final(token: str = Form(...), file: UploadFile = File(...)) -> JSONResponse:
+    if token != ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
+
+    filename = file.filename or ""
+    validate_excel_upload_name_v68(filename)
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="ไฟล์ Excel ว่าง หรือไม่ได้ถูกส่งขึ้น server")
+
+    result = save_excel_import_replace_all(content)
+    result["import_type"] = "excel"
+    result["filename"] = filename
+    result["file_size"] = len(content)
+
+    clear_dashboard_cache()
+    verify_store, _ = read_github_store()
+    result["verify_import_type"] = verify_store.get("import_type")
+    result["verify_records"] = len(verify_store.get("daily_records", []))
+    result["verify_updated_at"] = verify_store.get("updated_at")
+
+    return JSONResponse({"ok": True, **result})
+
+
+@app.get("/api/debug/import-flow")
+def api_debug_import_flow() -> JSONResponse:
+    store, _ = read_github_store()
+    rows = store.get("daily_records", [])
+    return JSONResponse({
+        "ok": True,
+        "github_repo": GITHUB_REPO,
+        "github_file": GITHUB_FILE,
+        "github_branch": GITHUB_BRANCH,
+        "import_type": store.get("import_type"),
+        "updated_at": store.get("updated_at"),
+        "records": len(rows),
+        "has_amount_fields": bool(rows and ("net_amount" in rows[0] or "collected_amount" in rows[0])),
+        "first_record_keys": list(rows[0].keys()) if rows else [],
+        "first_record": rows[0] if rows else None,
+        "sheet_stats": store.get("sheet_stats", []),
+    })

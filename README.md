@@ -1,26 +1,38 @@
-# Vehicle Dashboard v6.6 Company Money Status Fix
+# Vehicle Dashboard v6.8 Import Flow Final Fix
 
 พร้อม Deploy
 
-## แก้ไข
-1. แก้ยอดเงินใน Company Grid ไม่ขึ้น
-   - คำนวณยอดสุทธิ / ยอดเก็บจริงจาก daily_records โดยตรง
-   - รองรับ key ทั้ง `net_amount` / `netAmount`
-   - รองรับ key ทั้ง `collected_amount` / `collectedAmount`
+## แก้ Flow Import Excel
 
-2. หลัง Upload มีสรุปผลนำเข้าชัดเจนขึ้น
-   - สรุป RVP / ERGO / TPB / รวม
-   - แสดงจำนวนรถ
-   - แสดงยอดสุทธิ
-   - แสดงยอดเก็บจริง
-   - แสดงจำนวนรถแยกชนิด
+เพิ่ม endpoint ใหม่:
 
-3. เพิ่ม debug endpoint
-   - `/api/debug/company-summary`
-   - ใช้ตรวจว่าข้อมูลใน GitHub JSON มียอดเงินหรือไม่
+```text
+POST /api/import/excel-final
+GET  /api/debug/import-flow
+```
 
-## หลัง Deploy ให้ทดสอบ
-1. Upload Excel ใหม่ที่ `/admin`
-2. ดู status ใต้ปุ่ม upload
-3. เปิด `/api/debug/company-summary`
-4. เปิด `/dashboard`
+## วิธีใช้งานหลัง Deploy
+
+1. เปิด `/admin`
+2. เลือกไฟล์ Excel
+3. กด `Import Excel`
+4. ต้องเห็น:
+   - `ประเภท Import: excel`
+   - `Verify GitHub: excel / xx records`
+
+## เช็กผล
+
+เปิด:
+
+```text
+/api/debug/import-flow
+/api/debug/company-summary
+```
+
+ต้องเห็น:
+
+```text
+import_type = excel
+has_amount_fields = true
+net / collected > 0
+```
