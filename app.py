@@ -23,7 +23,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-APP_VERSION = "v6.9.1 Excel Import Production Fix"
+APP_VERSION = "v6.9.2 Excel Import Verify UI + GitHub Write Test"
 app = FastAPI(title=f"Vehicle Dashboard {APP_VERSION}")
 
 
@@ -734,7 +734,7 @@ fileInput.addEventListener('change', async event => {
   if(name.endsWith('.txt')){
     rawText.value = await file.text();
   }else if(name.endsWith('.xlsx') || name.endsWith('.xls')){
-    statusBox.textContent = 'เลือกไฟล์ Excel แล้ว: ' + file.name + '\nระบบจะอ่านทุกชีตที่มี header ถูกต้อง และข้ามชีต Dropdown อัตโนมัติ';
+    statusBox.textContent = 'เลือกไฟล์ Excel แล้ว: ' + file.name + '\nEndpoint ที่จะใช้: /api/import/excel\nระบบจะอ่านทุกชีตที่มี header ถูกต้อง และข้ามชีต Dropdown อัตโนมัติ';
   }
 });
 form.addEventListener('submit', async event => {
@@ -746,18 +746,33 @@ form.addEventListener('submit', async event => {
   if(file){ fd.append('file', file); }
   statusBox.textContent = 'กำลังเคลียร์ข้อมูลเดิมทั้งหมด และบันทึกข้อมูลชุดใหม่...';
   const endpoint = file && (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) ? '/api/import/excel' : '/api/import/text';
-  const res = await fetch(endpoint, {method:'POST', body:fd});
-  const data = await res.json();
-  if(!res.ok){statusBox.textContent = data.detail || 'บันทึกไม่สำเร็จ';return;}
+  statusBox.textContent = 'กำลังส่งไป endpoint: ' + endpoint + ' ...';
+  let data = null;
+  try{
+    const res = await fetch(endpoint + '?ts=' + Date.now(), {method:'POST', body:fd, cache:'no-store'});
+    data = await res.json();
+    if(!res.ok){statusBox.textContent = 'นำเข้าไม่สำเร็จจาก endpoint ' + endpoint + '\n' + (data.detail || JSON.stringify(data,null,2));return;}
+  }catch(err){
+    statusBox.textContent = 'เรียก API ไม่สำเร็จ: ' + err;
+    return;
+  }
+  let verify = null;
+  try{
+    const vres = await fetch('/api/debug/import-flow?ts=' + Date.now(), {cache:'no-store'});
+    verify = await vres.json();
+  }catch(err){ verify = {ok:false, error:String(err)}; }
   const versionText = data.version ? ('Version: ' + data.version + '\n') : '';
   statusBox.textContent =
-    'อัปเดตสำเร็จ\\n' +
+    'อัปเดตสำเร็จจาก endpoint: ' + endpoint + '\n' +
     versionText +
-    'Report ID: ' + data.report_id + '\\n' +
-    'จำนวนวันที่ในไฟล์: ' + data.imported_dates + ' วัน\\n' +
-    'ลบข้อมูลเดิม: ' + data.deleted_records + ' รายการ\\n' +
-    'บันทึกข้อมูลใหม่: ' + data.inserted + ' รายการ\\n' +
-    'อัปเดตยอดสรุปรายสัปดาห์: ' + data.replaced_summaries + ' ชุด';
+    'import_type: ' + (data.import_type || '-') + '\n' +
+    'parsed_rows: ' + (data.parsed_rows ?? '-') + '\n' +
+    'บันทึกข้อมูลใหม่: ' + (data.inserted ?? '-') + ' รายการ\n' +
+    'verify.current_import_type: ' + (verify.current_import_type || '-') + '\n' +
+    'verify.record_count: ' + (verify.record_count ?? '-') + '\n' +
+    'verify.required_money_fields_ok: ' + verify.required_money_fields_ok + '\n' +
+    'sha: ' + (verify.sha || '-') + '\n\n' +
+    'RAW RESPONSE:\n' + JSON.stringify(data,null,2) + '\n\nVERIFY:\n' + JSON.stringify(verify,null,2);
 });
 </script>
 </body>
@@ -1109,6 +1124,31 @@ def api_debug_company_summary() -> JSONResponse:
         "updated_at": store.get("updated_at"),
         "sheet_stats": store.get("sheet_stats", []),
         "company_summary": summary,
+    })
+
+
+
+
+@app.post("/api/debug/github-test-write")
+async def api_debug_github_test_write(token: str = Form(...)) -> JSONResponse:
+    if token != ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="Admin token ไม่ถูกต้อง")
+    store, sha = read_github_store()
+    before_updated_at = store.get("updated_at")
+    now = datetime.utcnow().isoformat()
+    store["last_test_write"] = {"ok": True, "at": now, "app_version": APP_VERSION}
+    store["app_version"] = APP_VERSION
+    write_github_store(store, sha, f"test github write {now}")
+    verify_store, verify_sha = read_github_store()
+    test_ok = (verify_store.get("last_test_write") or {}).get("at") == now
+    return JSONResponse({
+        "ok": test_ok,
+        "before_sha": sha,
+        "after_sha": verify_sha,
+        "before_updated_at": before_updated_at,
+        "last_test_write": verify_store.get("last_test_write"),
+        "message": "GitHub write ใช้งานได้" if test_ok else "GitHub write ไม่ผ่าน",
+        "version": APP_VERSION,
     })
 
 
