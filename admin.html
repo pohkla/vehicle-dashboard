@@ -1,0 +1,99 @@
+
+<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Vehicle Dashboard Admin</title><link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--cyan:#14b8a6;--line:#e5e7eb;--shadow:0 16px 40px rgba(15,23,42,.08)}*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.wrap{width:min(980px,94vw);margin:auto;padding:32px 0}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:28px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:34px}.hero p{margin:0;opacity:.9}.version{display:inline-flex;margin-top:14px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.16);font-weight:700}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid var(--line)}.card{background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-radius:28px;padding:26px;box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9)}.tabs{display:flex;gap:10px;margin:0 0 16px}.tab-btn{border:1px solid var(--line);background:#fff;color:#1d4ed8;border-radius:16px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:800;cursor:pointer}.tab-btn.active{background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;border-color:transparent;box-shadow:0 12px 22px rgba(37,99,235,.18)}.tab-panel{display:none}.tab-panel.active{display:block}.hint{padding:12px 14px;background:#eff6ff;color:#1d4ed8;border-radius:14px;margin:12px 0;font-size:14px}.danger{background:#fff7ed;color:#9a3412}.dropzone{border:2px dashed #bfdbfe;background:#f8fbff;border-radius:22px;padding:28px;text-align:center;transition:.18s;cursor:pointer;margin:14px 0}.dropzone:hover,.dropzone.dragover{border-color:#2563eb;background:#eff6ff;transform:translateY(-1px)}.drop-title{font-size:20px;font-weight:800;color:#1d4ed8}.drop-sub{color:#667085;margin-top:6px;font-size:14px}.file-name{margin-top:10px;color:#172033;font-weight:800}input[type=file]{display:none}textarea{width:100%;height:360px;border:1px solid var(--line);border-radius:18px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:800;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 12px 22px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn:disabled{opacity:.65;cursor:not-allowed;transform:none}.btn2{background:#eff6ff;color:#1d4ed8;box-shadow:none;text-decoration:none}.status{margin-top:12px;color:var(--muted);white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);padding:14px;border-radius:14px}.status.loading{color:#1d4ed8;font-weight:700}.status.loading:before{content:"";display:inline-block;width:16px;height:16px;margin-right:8px;border-radius:999px;border:3px solid #dbeafe;border-top-color:#2563eb;vertical-align:-3px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(max-width:680px){.tabs{display:grid}.hero h1{font-size:28px}.dropzone{padding:22px 14px}}
+
+.compact-range-toolbar .date-filter-card,.compact-range-toolbar .date-input-wrap{display:none!important}
+</style></head><body><div class="wrap"><div class="nav"><a href="/admin">Admin</a><a href="/dashboard" target="_blank">Dashboard Only</a><a href="/api/health" target="_blank">Health</a></div><div class="hero"><h1>Vehicle Dashboard Admin</h1><p>นำเข้าข้อมูลแบบ Replace All: ล้างข้อมูลเดิมทั้งหมด แล้วใช้เฉพาะข้อมูลชุดล่าสุด</p><div class="version">Version: v6.11 Compact Range Picker</div></div><div class="card"><div class="tabs"><button class="tab-btn active" data-tab="excelPanel" type="button">1) Import Excel</button><button class="tab-btn" data-tab="textPanel" type="button">2) Import Text</button></div><section class="tab-panel active" id="excelPanel"><h2>Import Excel</h2><div class="hint">รองรับไฟล์ .xlsx / .xls ที่มี header: วันที่, ประเภทรถ, บริษัท, รหัส, ยอดสุทธิ, ยอดเก็บจริง</div><input type="file" id="excelFile" accept=".xlsx,.xls"><div class="dropzone" id="excelDrop"><div class="drop-title">ลากวางไฟล์ Excel ที่นี่</div><div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์จากเครื่อง</div><div class="file-name" id="excelName">ยังไม่ได้เลือกไฟล์</div></div><div class="row"><button class="btn" id="excelBtn" type="button">Upload Excel และบันทึก GitHub</button><a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard</a></div><div class="status" id="excelStatus">พร้อม Import Excel</div></section><section class="tab-panel" id="textPanel"><h2>Import Text</h2><div class="hint danger">Text Import ใช้ flow เดิมจาก v6.2 และไม่ต้องกรอก Admin Token</div><input type="file" id="textFile" accept=".txt,text/plain"><div class="dropzone" id="textDrop"><div class="drop-title">ลากวางไฟล์ Text ที่นี่</div><div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์ .txt จากเครื่อง / หรือวางข้อความด้านล่าง</div><div class="file-name" id="textName">ยังไม่ได้เลือกไฟล์</div></div><textarea id="raw_text" placeholder="วางข้อมูลรายสัปดาห์หลายชุดต่อกันได้ตรงนี้..."></textarea><div class="row"><button class="btn" id="textBtn" type="button">Import Text และบันทึก GitHub</button><a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard</a></div><div class="status" id="textStatus">พร้อม Import Text</div></section></div></div><script>
+const $ = (id) => document.getElementById(id);
+const excelFile = $('excelFile');
+const textFile = $('textFile');
+const rawText = $('raw_text');
+const excelStatus = $('excelStatus');
+const textStatus = $('textStatus');
+const pretty = (d) => JSON.stringify(d, null, 2);
+
+function setStatus(el, message, loading=false){
+  el.classList.toggle('loading', loading);
+  el.textContent = message;
+}
+
+document.querySelectorAll('.tab-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+    btn.classList.add('active');
+    $(btn.dataset.tab).classList.add('active');
+  });
+});
+
+function bindDrop(zoneId, input, after){
+  const zone = $(zoneId);
+  zone.addEventListener('click', () => input.click());
+  ['dragenter','dragover'].forEach((ev) => zone.addEventListener(ev, (e) => {
+    e.preventDefault();
+    zone.classList.add('dragover');
+  }));
+  ['dragleave','drop'].forEach((ev) => zone.addEventListener(ev, (e) => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+  }));
+  zone.addEventListener('drop', (e) => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(!f) return;
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    input.files = dt.files;
+    after(f);
+  });
+  input.addEventListener('change', () => {
+    const f = input.files && input.files[0];
+    if(f) after(f);
+  });
+}
+
+bindDrop('excelDrop', excelFile, (f) => { $('excelName').textContent = f.name; });
+bindDrop('textDrop', textFile, async (f) => {
+  $('textName').textContent = f.name;
+  rawText.value = await f.text();
+});
+
+$('excelBtn').addEventListener('click', async () => {
+  const file = excelFile.files && excelFile.files[0];
+  if(!file){ setStatus(excelStatus, 'กรุณาเลือกไฟล์ Excel ก่อน'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  $('excelBtn').disabled = true;
+  setStatus(excelStatus, 'กำลังอัปโหลด Excel → /api/import/excel ...', true);
+  try{
+    const res = await fetch('/api/import/excel', { method:'POST', body: fd });
+    const data = await res.json();
+    if(!res.ok){ setStatus(excelStatus, data.detail || pretty(data)); return; }
+    setStatus(excelStatus, 'Import Excel สำเร็จ\n' + pretty(data));
+  }catch(err){
+    setStatus(excelStatus, 'Import Excel ล้มเหลว: ' + err.message);
+  }finally{
+    $('excelBtn').disabled = false;
+    excelStatus.classList.remove('loading');
+  }
+});
+
+$('textBtn').addEventListener('click', async () => {
+  const txt = rawText.value.trim();
+  if(!txt){ setStatus(textStatus, 'กรุณาวางข้อความ หรือเลือกไฟล์ .txt ก่อน'); return; }
+  const fd = new FormData();
+  fd.append('raw_text', txt);
+  $('textBtn').disabled = true;
+  setStatus(textStatus, 'กำลัง Import Text → /api/import/text ...', true);
+  try{
+    const res = await fetch('/api/import/text', { method:'POST', body: fd });
+    const data = await res.json();
+    if(!res.ok){ setStatus(textStatus, data.detail || pretty(data)); return; }
+    setStatus(textStatus, 'Import Text สำเร็จ\n' + pretty(data));
+  }catch(err){
+    setStatus(textStatus, 'Import Text ล้มเหลว: ' + err.message);
+  }finally{
+    $('textBtn').disabled = false;
+    textStatus.classList.remove('loading');
+  }
+});
+</script>
+</script></body></html>
