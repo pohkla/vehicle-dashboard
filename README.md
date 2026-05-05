@@ -1,18 +1,13 @@
-# Vehicle Dashboard v6.4 Excel Import Stable Restore
+# Vehicle Dashboard v6.2 Company KPI Hover
 
-Base: v6.2 company KPI hover.
+พร้อม Deploy
 
-Changes:
-- Keep original GitHub JSON read/write layer from v6.2.
-- Add `/api/import/excel` for Excel `.xlsx/.xls` upload.
-- Add `/api/import/text` and keep legacy `/api/import` for text import.
-- Remove Admin Token input from `/admin` import UI.
-- Show system version on `/admin` and `/dashboard` title.
-- Excel parser requires headers: วันที่, ประเภทรถ, บริษัท, รหัส, ยอดสุทธิ, ยอดเก็บจริง.
-- Excel records include `net_amount`, `collected_amount`, and `import_type: excel`.
+## เพิ่มใหม่
+- KPI Card ด้านบนเป็นข้อมูลบริษัท: RVP / ERGO / TPB / รวมทั้งหมด
+- แสดง % Share และ mini progress bar
+- Hover KPI แล้ว highlight กราฟบริษัทนั้น
+- กราฟซ้ายยังเป็น Stacked Bar แยกบริษัท + เส้นรวม
+- Hybrid Card ฝั่งขวาคงเดิม
 
-Deploy on Render with existing ENV:
-- GITHUB_TOKEN
-- GITHUB_REPO
-- GITHUB_FILE
-- GITHUB_BRANCH
+## ENV บน Render
+ADMIN_TOKEN, GITHUB_TOKEN, GITHUB_REPO, GITHUB_FILE, GITHUB_BRANCH, CACHE_TTL_SECONDS
