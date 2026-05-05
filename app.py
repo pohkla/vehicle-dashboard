@@ -21,7 +21,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-APP_VERSION = "v6.9 Dashboard UX + Admin Tabs"
+APP_VERSION = "v6.10 Admin Fix + Modern Date Range"
 app = FastAPI(title=f"Vehicle Dashboard {APP_VERSION}")
 
 
@@ -552,14 +552,99 @@ def get_dashboard_data(start: str | None = None, end: str | None = None, q: str 
 ADMIN_HTML = """
 <!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Vehicle Dashboard Admin</title><link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--cyan:#14b8a6;--line:#e5e7eb;--shadow:0 16px 40px rgba(15,23,42,.08)}*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.wrap{width:min(980px,94vw);margin:auto;padding:32px 0}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:28px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:34px}.hero p{margin:0;opacity:.9}.version{display:inline-flex;margin-top:14px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.16);font-weight:700}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid var(--line)}.card{background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-radius:28px;padding:26px;box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9)}.tabs{display:flex;gap:10px;margin:0 0 16px}.tab-btn{border:1px solid var(--line);background:#fff;color:#1d4ed8;border-radius:16px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:800;cursor:pointer}.tab-btn.active{background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;border-color:transparent;box-shadow:0 12px 22px rgba(37,99,235,.18)}.tab-panel{display:none}.tab-panel.active{display:block}.hint{padding:12px 14px;background:#eff6ff;color:#1d4ed8;border-radius:14px;margin:12px 0;font-size:14px}.danger{background:#fff7ed;color:#9a3412}.dropzone{border:2px dashed #bfdbfe;background:#f8fbff;border-radius:22px;padding:28px;text-align:center;transition:.18s;cursor:pointer;margin:14px 0}.dropzone:hover,.dropzone.dragover{border-color:#2563eb;background:#eff6ff;transform:translateY(-1px)}.drop-title{font-size:20px;font-weight:800;color:#1d4ed8}.drop-sub{color:#667085;margin-top:6px;font-size:14px}.file-name{margin-top:10px;color:#172033;font-weight:800}input[type=file]{display:none}textarea{width:100%;height:360px;border:1px solid var(--line);border-radius:18px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:800;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 12px 22px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn:disabled{opacity:.65;cursor:not-allowed;transform:none}.btn2{background:#eff6ff;color:#1d4ed8;box-shadow:none;text-decoration:none}.status{margin-top:12px;color:var(--muted);white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);padding:14px;border-radius:14px}.status.loading{color:#1d4ed8;font-weight:700}.status.loading:before{content:"";display:inline-block;width:16px;height:16px;margin-right:8px;border-radius:999px;border:3px solid #dbeafe;border-top-color:#2563eb;vertical-align:-3px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(max-width:680px){.tabs{display:grid}.hero h1{font-size:28px}.dropzone{padding:22px 14px}}
 </style></head><body><div class="wrap"><div class="nav"><a href="/admin">Admin</a><a href="/dashboard" target="_blank">Dashboard Only</a><a href="/api/health" target="_blank">Health</a></div><div class="hero"><h1>Vehicle Dashboard Admin</h1><p>นำเข้าข้อมูลแบบ Replace All: ล้างข้อมูลเดิมทั้งหมด แล้วใช้เฉพาะข้อมูลชุดล่าสุด</p><div class="version">Version: __APP_VERSION__</div></div><div class="card"><div class="tabs"><button class="tab-btn active" data-tab="excelPanel" type="button">1) Import Excel</button><button class="tab-btn" data-tab="textPanel" type="button">2) Import Text</button></div><section class="tab-panel active" id="excelPanel"><h2>Import Excel</h2><div class="hint">รองรับไฟล์ .xlsx / .xls ที่มี header: วันที่, ประเภทรถ, บริษัท, รหัส, ยอดสุทธิ, ยอดเก็บจริง</div><input type="file" id="excelFile" accept=".xlsx,.xls"><div class="dropzone" id="excelDrop"><div class="drop-title">ลากวางไฟล์ Excel ที่นี่</div><div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์จากเครื่อง</div><div class="file-name" id="excelName">ยังไม่ได้เลือกไฟล์</div></div><div class="row"><button class="btn" id="excelBtn" type="button">Upload Excel และบันทึก GitHub</button><a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard</a></div><div class="status" id="excelStatus">พร้อม Import Excel</div></section><section class="tab-panel" id="textPanel"><h2>Import Text</h2><div class="hint danger">Text Import ใช้ flow เดิมจาก v6.2 และไม่ต้องกรอก Admin Token</div><input type="file" id="textFile" accept=".txt,text/plain"><div class="dropzone" id="textDrop"><div class="drop-title">ลากวางไฟล์ Text ที่นี่</div><div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์ .txt จากเครื่อง / หรือวางข้อความด้านล่าง</div><div class="file-name" id="textName">ยังไม่ได้เลือกไฟล์</div></div><textarea id="raw_text" placeholder="วางข้อมูลรายสัปดาห์หลายชุดต่อกันได้ตรงนี้..."></textarea><div class="row"><button class="btn" id="textBtn" type="button">Import Text และบันทึก GitHub</button><a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard</a></div><div class="status" id="textStatus">พร้อม Import Text</div></section></div></div><script>
-const $=id=>document.getElementById(id);const excelFile=$('excelFile'),textFile=$('textFile'),rawText=$('raw_text'),excelStatus=$('excelStatus'),textStatus=$('textStatus');
-function pretty(d){return JSON.stringify(d,null,2)}
-document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));btn.classList.add('active');$(btn.dataset.tab).classList.add('active')}));
-function bindDrop(zoneId,input,after){const zone=$(zoneId);zone.addEventListener('click',()=>input.click());['dragenter','dragover'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.add('dragover')}));['dragleave','drop'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.remove('dragover')}));zone.addEventListener('drop',e=>{const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(!f)return;const dt=new DataTransfer();dt.items.add(f);input.files=dt.files;after(f)});input.addEventListener('change',()=>{const f=input.files&&input.files[0];if(f)after(f)})}
-bindDrop('excelDrop',excelFile,f=>{$('excelName').textContent=f.name});
-bindDrop('textDrop',textFile,async f=>{$('textName').textContent=f.name;rawText.value=await f.text()});
-$('excelBtn').addEventListener('click',async()=>{const file=excelFile.files[0];if(!file){excelStatus.textContent='กรุณาเลือกไฟล์ Excel ก่อน';return}const fd=new FormData();fd.append('file',file);excelStatus.classList.add('loading');$('excelBtn').disabled=true;excelStatus.textContent='กำลังอัปโหลด Excel → /api/import/excel ...';try{const res=await fetch('/api/import/excel',{method:'POST',body:fd});const data=await res.json();if(!res.ok){excelStatus.textContent=data.detail||pretty(data);return}excelStatus.textContent='Import Excel สำเร็จ\nEndpoint: /api/import/excel\nParsed rows: '+(data.parsed_rows??'-')+'\nInserted: '+(data.inserted??'-')+'\nGitHub verified: '+(data.github_write_verified??'-')+'\n\n'+pretty(data)}catch(e){excelStatus.textContent='Import Excel Error: '+e.message}finally{excelStatus.classList.remove('loading');$('excelBtn').disabled=false}});
-$('textBtn').addEventListener('click',async()=>{const fd=new FormData();fd.append('raw_text',rawText.value);textStatus.classList.add('loading');$('textBtn').disabled=true;textStatus.textContent='กำลัง Import Text → /api/import/text ...';try{const res=await fetch('/api/import/text',{method:'POST',body:fd});const data=await res.json();if(!res.ok){textStatus.textContent=data.detail||pretty(data);return}textStatus.textContent='Import Text สำเร็จ\nEndpoint: /api/import/text\nParsed rows: '+(data.parsed_rows??'-')+'\nInserted: '+(data.inserted??'-')+'\n\n'+pretty(data)}catch(e){textStatus.textContent='Import Text Error: '+e.message}finally{textStatus.classList.remove('loading');$('textBtn').disabled=false}});
+const $ = (id) => document.getElementById(id);
+const excelFile = $('excelFile');
+const textFile = $('textFile');
+const rawText = $('raw_text');
+const excelStatus = $('excelStatus');
+const textStatus = $('textStatus');
+const pretty = (d) => JSON.stringify(d, null, 2);
+
+function setStatus(el, message, loading=false){
+  el.classList.toggle('loading', loading);
+  el.textContent = message;
+}
+
+document.querySelectorAll('.tab-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+    btn.classList.add('active');
+    $(btn.dataset.tab).classList.add('active');
+  });
+});
+
+function bindDrop(zoneId, input, after){
+  const zone = $(zoneId);
+  zone.addEventListener('click', () => input.click());
+  ['dragenter','dragover'].forEach((ev) => zone.addEventListener(ev, (e) => {
+    e.preventDefault();
+    zone.classList.add('dragover');
+  }));
+  ['dragleave','drop'].forEach((ev) => zone.addEventListener(ev, (e) => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+  }));
+  zone.addEventListener('drop', (e) => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(!f) return;
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    input.files = dt.files;
+    after(f);
+  });
+  input.addEventListener('change', () => {
+    const f = input.files && input.files[0];
+    if(f) after(f);
+  });
+}
+
+bindDrop('excelDrop', excelFile, (f) => { $('excelName').textContent = f.name; });
+bindDrop('textDrop', textFile, async (f) => {
+  $('textName').textContent = f.name;
+  rawText.value = await f.text();
+});
+
+$('excelBtn').addEventListener('click', async () => {
+  const file = excelFile.files && excelFile.files[0];
+  if(!file){ setStatus(excelStatus, 'กรุณาเลือกไฟล์ Excel ก่อน'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  $('excelBtn').disabled = true;
+  setStatus(excelStatus, 'กำลังอัปโหลด Excel → /api/import/excel ...', true);
+  try{
+    const res = await fetch('/api/import/excel', { method:'POST', body: fd });
+    const data = await res.json();
+    if(!res.ok){ setStatus(excelStatus, data.detail || pretty(data)); return; }
+    setStatus(excelStatus, 'Import Excel สำเร็จ\\n' + pretty(data));
+  }catch(err){
+    setStatus(excelStatus, 'Import Excel ล้มเหลว: ' + err.message);
+  }finally{
+    $('excelBtn').disabled = false;
+    excelStatus.classList.remove('loading');
+  }
+});
+
+$('textBtn').addEventListener('click', async () => {
+  const txt = rawText.value.trim();
+  if(!txt){ setStatus(textStatus, 'กรุณาวางข้อความ หรือเลือกไฟล์ .txt ก่อน'); return; }
+  const fd = new FormData();
+  fd.append('raw_text', txt);
+  $('textBtn').disabled = true;
+  setStatus(textStatus, 'กำลัง Import Text → /api/import/text ...', true);
+  try{
+    const res = await fetch('/api/import/text', { method:'POST', body: fd });
+    const data = await res.json();
+    if(!res.ok){ setStatus(textStatus, data.detail || pretty(data)); return; }
+    setStatus(textStatus, 'Import Text สำเร็จ\\n' + pretty(data));
+  }catch(err){
+    setStatus(textStatus, 'Import Text ล้มเหลว: ' + err.message);
+  }finally{
+    $('textBtn').disabled = false;
+    textStatus.classList.remove('loading');
+  }
+});
+</script>
 </script></body></html>
 """.replace("__APP_VERSION__", APP_VERSION)
 
@@ -572,6 +657,8 @@ DASHBOARD_HTML = """
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--green:#16a34a;--orange:#f97316;--cyan:#14b8a6;--dark:#111827;--line:#e5e7eb;--shadow:0 18px 42px rgba(15,23,42,.08);--glow:0 18px 40px rgba(37,99,235,.16);--radius:24px}
 *{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 30%),radial-gradient(circle at top right,#ccfbf1 0,transparent 26%),linear-gradient(180deg,#f8fafc,var(--bg));color:var(--text)}.page{width:min(1280px,94vw);margin:0 auto;padding:32px 0 48px}
@@ -591,7 +678,7 @@ DASHBOARD_HTML = """
 @media(max-width:560px){.top-toolbar{padding:14px}.top-toolbar h2{font-size:20px;margin-bottom:12px}.top-toolbar .filter-group{display:grid;grid-template-columns:1fr;gap:8px;width:100%}.top-toolbar .date-input{width:100%;height:38px;font-size:12px;padding:7px 9px}.top-toolbar .btn{width:100%;height:38px;padding:0 12px}.hero{gap:14px}.hybrid-card.primary h2{font-size:25px}.amount,.hybrid-total{font-size:38px}}
 </style></head>
 <body><div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><span class="spinner"></span><span id="loadingText">กำลังโหลดข้อมูล...</span></div></div><main class="page">
-<section class="toolbar top-toolbar"><h2>เลือกช่วงวันที่ Dashboard</h2><div class="filter-group"><input class="date-input" id="startDate" type="date"><input class="date-input" id="endDate" type="date"><button class="btn" id="applyBtn">แสดงช่วงวันที่</button><button class="btn btn2" id="resetBtn">ดูทั้งหมด</button></div></section>
+<section class="toolbar top-toolbar modern-date-toolbar"><div><h2>เลือกช่วงวันที่ Dashboard</h2><p class="date-helper">เลือกช่วงวันที่แบบใหม่ มีผลกับข้อมูลทั้งหน้า Dashboard</p></div><div class="date-filter-card"><div class="date-input-wrap"><span>เริ่มต้น</span><input class="date-input modern-date" id="startDate" type="text" placeholder="เลือกวันเริ่มต้น" autocomplete="off"></div><div class="date-input-wrap"><span>สิ้นสุด</span><input class="date-input modern-date" id="endDate" type="text" placeholder="เลือกวันสิ้นสุด" autocomplete="off"></div><button class="btn" id="applyBtn">แสดงช่วงวันที่</button><button class="btn btn2" id="thisMonthBtn" type="button">เดือนนี้</button><button class="btn btn2" id="resetBtn">ดูทั้งหมด</button></div></section>
 <section class="hero"><div class="hybrid-card primary"><div><div class="period-pill" id="period">📊 Dashboard ข้อมูลสะสมทั้งหมด</div><h2>สัดส่วนประเภทรถ</h2><p class="label" style="margin:0 0 14px">ภาพรวมจำนวนรถตามช่วงวันที่ที่เลือก</p></div><div><div class="hybrid-head"><div><div class="hybrid-total" id="hybridTotal">0</div><div class="hybrid-label">คันทั้งหมด</div></div><div><span class="status-pill"><span class="dot"></span><span id="refreshStatus">Auto refresh ทุก 15 นาที</span></span></div></div><div class="breakdown-list" id="breakdownList"></div></div></div><div class="total-card"><div class="label">ยอดเก็บจริง</div><div class="amount" id="netTotalAmount">0</div><div class="label">ยอดสุทธิตามระบบ</div><div class="amount" id="collectedTotalAmount" style="font-size:34px;color:#16a34a;margin-top:10px">0</div><table class="summary-table"><tr><th>หมวด</th><th>ยอดสุทธิ</th><th>ยอดเก็บจริง</th></tr><tr><td>🚛 🚗 รถยนต์</td><td id="carNetAmount">0 บาท</td><td id="carCollectedAmount">0 บาท</td></tr><tr><td>🏍 รถจักรยานยนต์</td><td id="motorNetAmount">0 บาท</td><td id="motorCollectedAmount">0 บาท</td></tr></table></div></section>
 <section class="kpi-grid">
  <div class="kpi company-kpi" data-company="RVP" onmouseenter="highlightCompany('RVP')" onmouseleave="highlightCompany(null)"><div class="icon"><span class="company-dot" style="background:#2563eb"></span>บริษัทกลางฯ RVP</div><div class="value" id="rvpCount">0</div><div class="title">จำนวนรถทั้งหมด</div><div class="company-meta"><span>Share</span><span id="rvpPercent">0%</span></div><div class="company-progress"><span id="rvpBar" style="background:linear-gradient(90deg,#2563eb,#1d4ed8)"></span></div><div class="company-detail" id="rvpDetail"></div></div>
@@ -700,7 +787,7 @@ function exportPDF(){
 }
 function showLoading(msg='กำลังโหลดข้อมูล...'){const t=box('loadingText'),o=box('loadingOverlay');if(t)t.textContent=msg;if(o)o.classList.add('show')}function hideLoading(){const o=box('loadingOverlay');if(o)o.classList.remove('show')}
 async function load(){showLoading('กำลังค้นหาและอัปเดต Dashboard...');box('refreshStatus').textContent='กำลังโหลดข้อมูล...';try{const params=new URLSearchParams();const s=box('startDate').value,e=box('endDate').value,q=(box('searchBox')?box('searchBox').value.trim():'');if(s)params.set('start',s);if(e)params.set('end',e);if(q)params.set('q',q);const query=params.toString();const url='/api/dashboard'+(query?('?'+query+'&ts='+Date.now()):('?ts='+Date.now()));const res=await fetch(url).catch(()=>null);if(!res||!res.ok){box('status').textContent='ยังไม่มีข้อมูล';box('refreshStatus').textContent='ยังไม่มีข้อมูล';return}report=await res.json();allDays=report.dailyData;filteredDays=[...allDays];if(!s&&!e)setupRange();render(activeSelected);box('refreshStatus').textContent='ข้อมูลล่าสุดแล้ว • '+new Date().toLocaleTimeString('th-TH')+' • Auto refresh ทุก 15 นาที'}finally{hideLoading()}}
-box('applyBtn').onclick=()=>load();box('resetBtn').onclick=()=>{box('startDate').value='';box('endDate').value='';if(box('searchBox'))box('searchBox').value='';activeSelected='all';load()};box('showDateBtn').onclick=()=>{currentPage=1;renderCards(box('dateFilter').value)};box('showAllBtn').onclick=()=>{box('dateFilter').value='all';currentPage=1;renderCards('all')};box('dateFilter').onchange=()=>{currentPage=1;renderCards(box('dateFilter').value)};if(box('searchBox'))box('searchBox').oninput=()=>{currentPage=1;clearTimeout(window.searchTimer);window.searchTimer=setTimeout(()=>load(),450)};box('prevPageBtn').onclick=()=>{if(currentPage>1){currentPage--;renderCards(box('dateFilter').value)}};box('nextPageBtn').onclick=()=>{currentPage++;renderCards(box('dateFilter').value)};box('detailModeBtn').onclick=()=>{viewMode='detail';box('detailModeBtn').classList.add('active');box('compactModeBtn').classList.remove('active');renderCards(box('dateFilter').value)};box('compactModeBtn').onclick=()=>{viewMode='compact';box('compactModeBtn').classList.add('active');box('detailModeBtn').classList.remove('active');renderCards(box('dateFilter').value)};box('exportExcelBtn').onclick=exportExcel;box('exportPdfBtn').onclick=exportPDF;setCurrentMonthDefault();load();setInterval(()=>load(),900000);
+box('applyBtn').onclick=()=>load();box('resetBtn').onclick=()=>{box('startDate').value='';box('endDate').value='';if(box('searchBox'))box('searchBox').value='';activeSelected='all';load()};box('showDateBtn').onclick=()=>{currentPage=1;renderCards(box('dateFilter').value)};box('showAllBtn').onclick=()=>{box('dateFilter').value='all';currentPage=1;renderCards('all')};box('dateFilter').onchange=()=>{currentPage=1;renderCards(box('dateFilter').value)};if(box('searchBox'))box('searchBox').oninput=()=>{currentPage=1;clearTimeout(window.searchTimer);window.searchTimer=setTimeout(()=>load(),450)};box('prevPageBtn').onclick=()=>{if(currentPage>1){currentPage--;renderCards(box('dateFilter').value)}};box('nextPageBtn').onclick=()=>{currentPage++;renderCards(box('dateFilter').value)};box('detailModeBtn').onclick=()=>{viewMode='detail';box('detailModeBtn').classList.add('active');box('compactModeBtn').classList.remove('active');renderCards(box('dateFilter').value)};box('compactModeBtn').onclick=()=>{viewMode='compact';box('compactModeBtn').classList.add('active');box('detailModeBtn').classList.remove('active');renderCards(box('dateFilter').value)};box('exportExcelBtn').onclick=exportExcel;box('exportPdfBtn').onclick=exportPDF;function initModernDatePicker(){const cfg={dateFormat:'Y-m-d',altInput:true,altFormat:'d M Y',allowInput:true,disableMobile:true};if(window.flatpickr){flatpickr('#startDate',cfg);flatpickr('#endDate',cfg)}}if(box('thisMonthBtn'))box('thisMonthBtn').onclick=()=>{setCurrentMonthDefault();load()};initModernDatePicker();setCurrentMonthDefault();load();setInterval(()=>load(),900000);
 </script></body></html>
 """
 
