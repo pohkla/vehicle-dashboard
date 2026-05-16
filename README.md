@@ -16,3 +16,8 @@ Deploy on Render with existing ENV:
 - GITHUB_REPO
 - GITHUB_FILE
 - GITHUB_BRANCH
+
+
+## v14.10 Datepicker Dark Mode Fix
+- Fixed Flatpickr calendar contrast in Dark Mode.
+- Improved selected/range/day/month/year readability.
