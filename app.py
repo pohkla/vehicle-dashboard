@@ -21,7 +21,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-APP_VERSION = "v14 Executive AI + Dark Mode + Search Layout Fix"
+APP_VERSION = "v14.3 Vehicle Money Breakdown"
 app = FastAPI(title=f"Vehicle Dashboard {APP_VERSION}")
 
 
@@ -437,20 +437,20 @@ def get_money_totals_from_weekly_summaries(store: dict[str, Any]) -> dict[str, f
     total = sum(float(s.get("total_amount", 0) or 0) for s in summaries)
     # Old text-import data has only one amount field. Keep it as net for backward compatibility.
     return {
-        "net": {"car": round(car, 2), "motorcycle": round(motorcycle, 2), "total": round(total, 2)},
-        "collected": {"car": 0, "motorcycle": 0, "total": 0},
+        "net": {"pickup": round(car, 2), "sedan": 0, "car": round(car, 2), "motorcycle": round(motorcycle, 2), "total": round(total, 2)},
+        "collected": {"pickup": 0, "sedan": 0, "car": 0, "motorcycle": 0, "total": 0},
         "legacy": True,
     }
 
 
 def get_money_totals_from_records(rows: list[dict[str, Any]], store: dict[str, Any], use_legacy_fallback: bool = False) -> dict[str, Any]:
-    net = {"car": 0.0, "motorcycle": 0.0, "total": 0.0}
-    collected = {"car": 0.0, "motorcycle": 0.0, "total": 0.0}
+    net = {"pickup": 0.0, "sedan": 0.0, "car": 0.0, "motorcycle": 0.0, "total": 0.0}
+    collected = {"pickup": 0.0, "sedan": 0.0, "car": 0.0, "motorcycle": 0.0, "total": 0.0}
     has_money_fields = False
 
     for row in rows:
         vehicle_type = row.get("vehicle_type")
-        bucket = "motorcycle" if vehicle_type == "motorcycle" else "car" if vehicle_type in ("pickup", "sedan", "car") else None
+        bucket = "motorcycle" if vehicle_type == "motorcycle" else vehicle_type if vehicle_type in ("pickup", "sedan") else "car" if vehicle_type == "car" else None
         if bucket is None:
             continue
 
@@ -460,8 +460,11 @@ def get_money_totals_from_records(rows: list[dict[str, Any]], store: dict[str, A
         collected_amount = float(row.get("collected_amount", 0) or 0)
 
         net[bucket] += net_amount
-        net["total"] += net_amount
         collected[bucket] += collected_amount
+        if bucket in ("pickup", "sedan", "car"):
+            net["car"] += net_amount
+            collected["car"] += collected_amount
+        net["total"] += net_amount
         collected["total"] += collected_amount
 
     if not has_money_fields and use_legacy_fallback:
@@ -685,7 +688,7 @@ DASHBOARD_HTML = """
 </style></head>
 <body><div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><span class="spinner"></span><span id="loadingText">กำลังโหลดข้อมูล...</span></div></div><main class="page">
 <section class="toolbar top-toolbar compact-range-toolbar"><div class="compact-range-title"><h2>เลือกช่วงวันที่ Dashboard</h2><p class="date-helper">เลือกช่วงวันที่แบบใหม่ มีผลกับข้อมูลทั้งหน้า Dashboard</p></div><div class="compact-range-control"><button class="range-main" id="rangeOpenBtn" type="button"><span class="range-icon">📅</span><span id="rangeDisplayText">01 May 2026 → 31 May 2026</span></button><input id="rangePicker" type="text" aria-label="เลือกช่วงวันที่" autocomplete="off"><input id="startDate" type="hidden"><input id="endDate" type="hidden"><div class="quick-actions"><button class="quick-btn" id="todayBtn" type="button">วันนี้</button><button class="quick-btn" id="thisWeekBtn" type="button">สัปดาห์นี้</button><button class="quick-btn active" id="thisMonthBtn" type="button">เดือนนี้</button><button class="btn apply-compact" id="applyBtn" type="button">แสดงผล</button><button class="quick-btn muted" id="resetBtn" type="button">ดูทั้งหมด</button></div></div></section>
-<section class="hero"><div class="hybrid-card primary"><div><div class="period-pill" id="period">📊 Dashboard ข้อมูลสะสมทั้งหมด</div><h2>สัดส่วนประเภทรถ</h2><p class="label" style="margin:0 0 14px">ภาพรวมจำนวนรถตามช่วงวันที่ที่เลือก</p></div><div><div class="hybrid-head"><div><div class="hybrid-total" id="hybridTotal">0</div><div class="hybrid-label">คันทั้งหมด</div></div><div><span class="status-pill"><span class="dot"></span><span id="refreshStatus">Auto refresh ทุก 15 นาที</span></span></div></div><div class="breakdown-list" id="breakdownList"></div></div></div><div class="total-card"><div class="label">ยอดเก็บจริง</div><div class="amount" id="netTotalAmount">0</div><div class="label">ยอดสุทธิตามระบบ</div><div class="amount" id="collectedTotalAmount" style="font-size:34px;color:#16a34a;margin-top:10px">0</div><table class="summary-table"><tr><th>หมวด</th><th>ยอดสุทธิ</th><th>ยอดเก็บจริง</th></tr><tr><td>🚛 🚗 รถยนต์</td><td id="carNetAmount">0 บาท</td><td id="carCollectedAmount">0 บาท</td></tr><tr><td>🏍 รถจักรยานยนต์</td><td id="motorNetAmount">0 บาท</td><td id="motorCollectedAmount">0 บาท</td></tr></table></div></section>
+<section class="hero"><div class="hybrid-card primary"><div><div class="period-pill" id="period">📊 Dashboard ข้อมูลสะสมทั้งหมด</div><h2>สัดส่วนประเภทรถ</h2><p class="label" style="margin:0 0 14px">ภาพรวมจำนวนรถตามช่วงวันที่ที่เลือก</p></div><div><div class="hybrid-head"><div><div class="hybrid-total" id="hybridTotal">0</div><div class="hybrid-label">คันทั้งหมด</div></div><div><span class="status-pill"><span class="dot"></span><span id="refreshStatus">Auto refresh ทุก 15 นาที</span></span></div></div><div class="breakdown-list" id="breakdownList"></div></div></div><div class="total-card"><div class="label">ยอดเก็บจริง</div><div class="amount" id="netTotalAmount">0</div><div class="label">ยอดสุทธิตามระบบ</div><div class="amount" id="collectedTotalAmount" style="font-size:34px;color:#16a34a;margin-top:10px">0</div><table class="summary-table"><tr><th>หมวด</th><th>ยอดสุทธิ</th><th>ยอดเก็บจริง</th></tr><tr><td>🚛 รถกระบะ</td><td id="pickupNetAmount">0 บาท</td><td id="pickupCollectedAmount">0 บาท</td></tr><tr><td>🚗 รถยนต์เก๋ง</td><td id="sedanNetAmount">0 บาท</td><td id="sedanCollectedAmount">0 บาท</td></tr><tr><td>🚛 🚗 รถยนต์รวม</td><td id="carNetAmount">0 บาท</td><td id="carCollectedAmount">0 บาท</td></tr><tr><td>🏍 รถจักรยานยนต์</td><td id="motorNetAmount">0 บาท</td><td id="motorCollectedAmount">0 บาท</td></tr></table></div></section>
 <section class="kpi-grid">
  <div class="kpi company-kpi" data-company="RVP" onmouseenter="highlightCompany('RVP')" onmouseleave="highlightCompany(null)"><div class="icon"><span class="company-dot" style="background:#2563eb"></span>บริษัทกลางฯ RVP</div><div class="value" id="rvpCount">0</div><div class="title">จำนวนรถทั้งหมด</div><div class="company-meta"><span>Share</span><span id="rvpPercent">0%</span></div><div class="company-progress"><span id="rvpBar" style="background:linear-gradient(90deg,#2563eb,#1d4ed8)"></span></div><div class="company-detail" id="rvpDetail"></div></div>
  <div class="kpi company-kpi" data-company="ERGO" onmouseenter="highlightCompany('ERGO')" onmouseleave="highlightCompany(null)"><div class="icon"><span class="company-dot" style="background:#dc2626"></span>ERGO</div><div class="value" id="ergoCount">0</div><div class="title">จำนวนรถทั้งหมด</div><div class="company-meta"><span>Share</span><span id="ergoPercent">0%</span></div><div class="company-progress"><span id="ergoBar" style="background:linear-gradient(90deg,#dc2626,#ef4444)"></span></div><div class="company-detail" id="ergoDetail"></div></div>
@@ -762,6 +765,10 @@ function render(selected='all'){
  box('period').textContent=report.period||'📊 Dashboard ข้อมูลสะสมทั้งหมด';
  box('netTotalAmount').textContent=money(collected.total)+' บาท';
  box('collectedTotalAmount').textContent=money(net.total)+' บาท';
+ box('pickupNetAmount').textContent=money(net.pickup)+' บาท';
+ box('pickupCollectedAmount').textContent=money(collected.pickup)+' บาท';
+ box('sedanNetAmount').textContent=money(net.sedan)+' บาท';
+ box('sedanCollectedAmount').textContent=money(collected.sedan)+' บาท';
  box('carNetAmount').textContent=money(net.car)+' บาท';
  box('carCollectedAmount').textContent=money(collected.car)+' บาท';
  box('motorNetAmount').textContent=money(net.motorcycle)+' บาท';
@@ -782,7 +789,7 @@ function amountLine(net,collected){return `<div class="item-money"><span class="
 function buildDetails(day){const daySum=sumDay(day);return `<div class="day-money-summary"><div class="money-pill net"><span>ยอดสุทธิตามระบบ</span><strong>${money(daySum.net)} บาท</strong><small>รวมทุกคัน</small></div><div class="money-pill collected"><span>ยอดเงินรวมประจำวัน</span><strong>${money(daySum.collected)} บาท</strong><small>ยอดเก็บจริง</small></div></div>`+day.groups.map(g=>{const gSum=sumItems(g.items);return `<div class="vehicle-group"><div class="vehicle-title vehicle-title-row"><span>${g.icon} ${g.title} (${g.items.length} คัน)</span><span class="vehicle-money"><span class="money-chip net">สุทธิ ${money(gSum.net)} บาท</span><span class="money-chip collected">เก็บจริง ${money(gSum.collected)} บาท</span></span></div>${g.company?`<span class="company">${g.company}</span>`:''}<ul>${g.items.map(i=>`<li><div class="vehicle-item-row"><span>${itemText(i)}</span>${amountLine(itemNet(i),itemCollected(i))}</div></li>`).join('')}</ul></div>`}).join('')}
 function toggleDay(btn,index){const card=btn.closest('.day-card');const body=card.querySelector('.day-body');if(card.classList.contains('open')){card.classList.remove('open');return}if(!body.dataset.loaded){const day=viewDays[index];body.innerHTML=buildDetails(day);body.dataset.loaded='1'}card.classList.add('open')}
 function renderCards(selected='all'){activeSelected=selected;const list=getCardList(selected);viewDays=list;const totalPages=Math.max(1,Math.ceil(list.length/pageSize));if(currentPage>totalPages)currentPage=totalPages;const start=(currentPage-1)*pageSize;const pageItems=list.slice(start,start+pageSize);box('cards').classList.toggle('compact',viewMode==='compact');box('pageInfo').textContent=`หน้า ${currentPage}/${totalPages} • แสดง ${pageItems.length}/${list.length} วัน`;box('prevPageBtn').disabled=currentPage<=1;box('nextPageBtn').disabled=currentPage>=totalPages;if(!pageItems.length){box('cards').innerHTML='<article class="day-card"><button class="day-head"><span class="day-title">ไม่พบข้อมูล</span></button></article>';return}box('cards').innerHTML=pageItems.map((day,idx)=>{const globalIndex=start+idx;const meta=getDayMeta(list,day);const compact=viewMode==='compact';const open=!compact&&idx<2;const tags=meta.tags.map(t=>`<span class="badge ${t.includes('Peak')?'tag-peak':t.includes('Low')?'tag-low':'tag-high'}">${t}</span>`).join('');const summary=`<div class="quick-summary"><span class="mini-chip">🏍 ${day.motorcycle}</span><span class="mini-chip">🚛 ${day.pickup}</span><span class="mini-chip">🚗 ${day.sedan}</span></div>`;const bodyContent=open?buildDetails(day):'';return `<article class="day-card ${meta.cls} ${compact?'compact-card':''} ${open?'open':''}"><button class="day-head" onclick="toggleDay(this,${globalIndex})"><span class="day-main"><span class="day-title">📊 วันที่ ${day.date}</span>${summary}</span><span class="day-tags">${tags}<span class="badge">รวม ${meta.total} คัน</span><span class="chev">⌄</span></span></button><div class="day-body" data-loaded="${open?'1':''}">${bodyContent}</div></article>`}).join('')}
-function exportExcel(){const safeText=(id,fallback='0')=>box(id)?.textContent?.replace(' บาท','')||fallback;const rows=flattenRows(viewDays.length?viewDays:filteredDays);const sourceDays=(viewDays.length?viewDays:filteredDays)||[];const counts=sourceDays.reduce((acc,day)=>{acc.motorcycle+=Number(day.motorcycle||0);acc.pickup+=Number(day.pickup||0);acc.sedan+=Number(day.sedan||0);return acc},{motorcycle:0,pickup:0,sedan:0});counts.all=counts.motorcycle+counts.pickup+counts.sedan;const summaryRows=[{หมวด:'ยอดเก็บจริงรวมทั้งหมด',ยอด:safeText('netTotalAmount'),หน่วย:'บาท'},{หมวด:'ยอดสุทธิตามระบบรวมทั้งหมด',ยอด:safeText('collectedTotalAmount'),หน่วย:'บาท'},{หมวด:'รถยนต์ - ยอดสุทธิ',ยอด:safeText('carNetAmount'),หน่วย:'บาท'},{หมวด:'รถยนต์ - ยอดเก็บจริง',ยอด:safeText('carCollectedAmount'),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์ - ยอดสุทธิ',ยอด:safeText('motorNetAmount'),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์ - ยอดเก็บจริง',ยอด:safeText('motorCollectedAmount'),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์',ยอด:counts.motorcycle,หน่วย:'คัน'},{หมวด:'รถกระบะ',ยอด:counts.pickup,หน่วย:'คัน'},{หมวด:'รถยนต์เก๋ง',ยอด:counts.sedan,หน่วย:'คัน'},{หมวด:'จำนวนรถรวมทั้งหมด',ยอด:counts.all,หน่วย:'คัน'}];const wsSummary=XLSX.utils.json_to_sheet(summaryRows);const wsDetail=XLSX.utils.json_to_sheet(rows.map(r=>({วันที่:r.date,ประเภทรถ:r.type,บริษัท:r.company,รายการ:r.item,ยอดสุทธิตามระบบ:r.net_amount,ยอดเก็บจริง:r.collected_amount})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,wsSummary,'Summary');XLSX.utils.book_append_sheet(wb,wsDetail,'Detail');XLSX.writeFile(wb,'vehicle-dashboard.xlsx')}
+function exportExcel(){const safeText=(id,fallback='0')=>box(id)?.textContent?.replace(' บาท','')||fallback;const rows=flattenRows(viewDays.length?viewDays:filteredDays);const sourceDays=(viewDays.length?viewDays:filteredDays)||[];const counts=sourceDays.reduce((acc,day)=>{acc.motorcycle+=Number(day.motorcycle||0);acc.pickup+=Number(day.pickup||0);acc.sedan+=Number(day.sedan||0);return acc},{motorcycle:0,pickup:0,sedan:0});counts.all=counts.motorcycle+counts.pickup+counts.sedan;const summaryRows=[{หมวด:'ยอดเก็บจริงรวมทั้งหมด',ยอด:safeText('netTotalAmount'),หน่วย:'บาท'},{หมวด:'ยอดสุทธิตามระบบรวมทั้งหมด',ยอด:safeText('collectedTotalAmount'),หน่วย:'บาท'},{หมวด:'รถกระบะ - ยอดสุทธิ',ยอด:safeText('pickupNetAmount'),หน่วย:'บาท'},{หมวด:'รถกระบะ - ยอดเก็บจริง',ยอด:safeText('pickupCollectedAmount'),หน่วย:'บาท'},{หมวด:'รถยนต์เก๋ง - ยอดสุทธิ',ยอด:safeText('sedanNetAmount'),หน่วย:'บาท'},{หมวด:'รถยนต์เก๋ง - ยอดเก็บจริง',ยอด:safeText('sedanCollectedAmount'),หน่วย:'บาท'},{หมวด:'รถยนต์รวม - ยอดสุทธิ',ยอด:safeText('carNetAmount'),หน่วย:'บาท'},{หมวด:'รถยนต์รวม - ยอดเก็บจริง',ยอด:safeText('carCollectedAmount'),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์ - ยอดสุทธิ',ยอด:safeText('motorNetAmount'),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์ - ยอดเก็บจริง',ยอด:safeText('motorCollectedAmount'),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์',ยอด:counts.motorcycle,หน่วย:'คัน'},{หมวด:'รถกระบะ',ยอด:counts.pickup,หน่วย:'คัน'},{หมวด:'รถยนต์เก๋ง',ยอด:counts.sedan,หน่วย:'คัน'},{หมวด:'จำนวนรถรวมทั้งหมด',ยอด:counts.all,หน่วย:'คัน'}];const wsSummary=XLSX.utils.json_to_sheet(summaryRows);const wsDetail=XLSX.utils.json_to_sheet(rows.map(r=>({วันที่:r.date,ประเภทรถ:r.type,บริษัท:r.company,รายการ:r.item,ยอดสุทธิตามระบบ:r.net_amount,ยอดเก็บจริง:r.collected_amount})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,wsSummary,'Summary');XLSX.utils.book_append_sheet(wb,wsDetail,'Detail');XLSX.writeFile(wb,'vehicle-dashboard.xlsx')}
 function escapeHtml(text){return String(text||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#039;")}
 function exportPDF(){
  const rows=flattenRows(viewDays.length?viewDays:filteredDays);

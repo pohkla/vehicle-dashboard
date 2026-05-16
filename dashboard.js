@@ -63,6 +63,10 @@ function render(selected='all'){
  box('period').textContent=report.period||'📊 Dashboard ข้อมูลสะสมทั้งหมด';
  box('netTotalAmount').textContent=money(collected.total)+' บาท';
  box('collectedTotalAmount').textContent=money(net.total)+' บาท';
+ box('pickupNetAmount').textContent=money(net.pickup)+' บาท';
+ box('pickupCollectedAmount').textContent=money(collected.pickup)+' บาท';
+ box('sedanNetAmount').textContent=money(net.sedan)+' บาท';
+ box('sedanCollectedAmount').textContent=money(collected.sedan)+' บาท';
  box('carNetAmount').textContent=money(net.car)+' บาท';
  box('carCollectedAmount').textContent=money(collected.car)+' บาท';
  box('motorNetAmount').textContent=money(net.motorcycle)+' บาท';
@@ -97,8 +101,12 @@ function exportExcel(){
  const summaryRows=[
   {หมวด:'ยอดเก็บจริงรวมทั้งหมด',ยอด:safeText('netTotalAmount'),หน่วย:'บาท'},
   {หมวด:'ยอดสุทธิตามระบบรวมทั้งหมด',ยอด:safeText('collectedTotalAmount'),หน่วย:'บาท'},
-  {หมวด:'รถยนต์ - ยอดสุทธิ',ยอด:safeText('carNetAmount'),หน่วย:'บาท'},
-  {หมวด:'รถยนต์ - ยอดเก็บจริง',ยอด:safeText('carCollectedAmount'),หน่วย:'บาท'},
+  {หมวด:'รถกระบะ - ยอดสุทธิ',ยอด:safeText('pickupNetAmount'),หน่วย:'บาท'},
+  {หมวด:'รถกระบะ - ยอดเก็บจริง',ยอด:safeText('pickupCollectedAmount'),หน่วย:'บาท'},
+  {หมวด:'รถยนต์เก๋ง - ยอดสุทธิ',ยอด:safeText('sedanNetAmount'),หน่วย:'บาท'},
+  {หมวด:'รถยนต์เก๋ง - ยอดเก็บจริง',ยอด:safeText('sedanCollectedAmount'),หน่วย:'บาท'},
+  {หมวด:'รถยนต์รวม - ยอดสุทธิ',ยอด:safeText('carNetAmount'),หน่วย:'บาท'},
+  {หมวด:'รถยนต์รวม - ยอดเก็บจริง',ยอด:safeText('carCollectedAmount'),หน่วย:'บาท'},
   {หมวด:'รถจักรยานยนต์ - ยอดสุทธิ',ยอด:safeText('motorNetAmount'),หน่วย:'บาท'},
   {หมวด:'รถจักรยานยนต์ - ยอดเก็บจริง',ยอด:safeText('motorCollectedAmount'),หน่วย:'บาท'},
   {หมวด:'รถจักรยานยนต์',ยอด:counts.motorcycle,หน่วย:'คัน'},
