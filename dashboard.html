@@ -318,6 +318,83 @@ body.dark .flatpickr-calendar option{
   color:#f8fafc!important;
 }
 
+
+
+/* v14.11 Mobile Responsive Polish */
+@media (hover:none), (pointer:coarse){
+  .total-card:hover,.panel:hover,.toolbar:hover,.hybrid-card:hover,.kpi:hover,.day-card:hover,.breakdown-row:hover,li:hover,.summary-subitem:hover{
+    transform:none!important;
+    box-shadow:inherit!important;
+  }
+}
+@media(max-width:760px){
+  .page{width:100%;padding:14px 12px 44px;overflow-x:hidden}
+  .compact-range-toolbar{position:relative;top:auto;border-radius:20px;padding:14px 12px;margin-bottom:14px}
+  .compact-range-title h2{font-size:18px;line-height:1.25}
+  .range-main{height:auto;min-height:44px;padding:10px 12px;text-align:center;line-height:1.25;white-space:normal}
+  .quick-actions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;border-radius:18px;width:100%}
+  .quick-btn,.apply-compact{min-width:0!important;width:100%;font-size:12px;padding:0 8px}
+  .hero{grid-template-columns:1fr!important;gap:12px;margin-bottom:14px}
+  .hybrid-card,.total-card,.toolbar,.day-card{border-radius:20px!important}
+  .hybrid-card,.total-card{padding:16px!important}
+  .hybrid-card.primary h2{font-size:22px!important}
+  .hybrid-total,.amount{font-size:34px!important}
+  .status-pill{max-width:100%;font-size:11px;padding:7px 10px;white-space:normal}
+  .breakdown-row{grid-template-columns:1fr;gap:8px;padding:11px 12px}
+  .break-meta{justify-content:space-between;width:100%}
+  .summary-table{font-size:13px;table-layout:fixed}
+  .summary-table th,.summary-table td{padding:10px 6px!important}
+  .summary-table th:nth-child(1),.summary-table td:nth-child(1){width:46%}
+  .summary-table th:nth-child(2),.summary-table td:nth-child(2),
+  .summary-table th:nth-child(3),.summary-table td:nth-child(3){width:27%;text-align:right}
+  .row-title{gap:6px;flex-wrap:wrap;align-items:center}
+  .breakdown-toggle-btn{margin-left:0!important;margin-top:5px;padding:5px 8px!important;font-size:10px!important;max-width:100%}
+  .summary-slide-row td{padding:0!important}
+  .summary-slide.open{padding:10px 0 14px!important}
+  .summary-subitem{grid-template-columns:1fr 1fr!important;padding:10px 12px!important;gap:7px!important}
+  .summary-subitem .sub-category-name{grid-column:1/-1;font-size:13px}
+  .summary-subitem b{text-align:left!important;font-size:13px}
+  .kpi-grid{grid-template-columns:1fr!important;gap:10px}
+  .kpi{padding:16px!important;border-radius:18px!important}
+  .toolbar.daily-toolbar{padding:16px 12px!important;border-radius:20px!important;gap:14px}
+  .daily-filter-group{display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+  .daily-filter-group .search-input,.daily-filter-group .date-select,.daily-filter-group .btn,.daily-filter-group .nav-btn{
+    width:100%!important;min-width:0!important;max-width:none!important;grid-column:auto!important;height:42px;font-size:12px
+  }
+  .daily-grid{grid-template-columns:1fr!important;gap:12px}
+  .day-head{padding:14px 12px!important;display:grid!important;grid-template-columns:1fr;gap:10px}
+  .day-title{font-size:15px!important;line-height:1.35}
+  .quick-summary,.day-tags{justify-content:flex-start!important;gap:6px}
+  .badge,.mini-chip{font-size:11px;padding:4px 8px}
+  .day-body{padding:0 12px!important}
+  .day-card.open .day-body{padding:0 12px 14px!important;max-height:none!important}
+  .day-money-summary{grid-template-columns:1fr!important;gap:8px;margin:12px 0 4px}
+  .money-pill{padding:10px 12px;border-radius:14px}
+  .money-pill strong{font-size:18px}
+  .vehicle-title-row{display:grid!important;grid-template-columns:1fr;gap:8px;align-items:start}
+  .vehicle-money,.item-money{justify-content:flex-start!important;gap:5px}
+  .vehicle-item-row{display:grid!important;grid-template-columns:1fr;gap:8px;align-items:start}
+  li{padding:9px 10px;font-size:12px;overflow-wrap:anywhere;word-break:break-word}
+  .money-chip,.item-money span{font-size:11px;padding:4px 7px}
+  .company{font-size:11px}
+  .pagination{gap:8px}.pagination .btn{width:auto!important;min-width:88px;font-size:12px;padding:9px 12px}
+  .page-info{font-size:12px;text-align:center;width:100%}
+  .version-credit{position:static!important;display:inline-block;margin:16px 0 0 0;font-size:10px;max-width:100%}
+}
+@media(max-width:420px){
+  .page{padding-left:10px;padding-right:10px}
+  .quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .summary-table{font-size:12px}
+  .summary-table th,.summary-table td{padding:9px 4px!important}
+  .amount,.hybrid-total{font-size:30px!important}
+  .money-chip,.item-money span{white-space:normal;line-height:1.25}
+}
+@media(max-width:520px){
+  .flatpickr-calendar{max-width:calc(100vw - 24px)!important;left:12px!important;right:12px!important;width:auto!important;box-sizing:border-box!important}
+  .flatpickr-days,.dayContainer{max-width:100%!important;width:100%!important;min-width:0!important}
+  .flatpickr-day{max-width:14.285%!important;width:14.285%!important;height:38px!important;line-height:38px!important}
+}
+
 </style></head>
 <body><div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><span class="spinner"></span><span id="loadingText">กำลังโหลดข้อมูล...</span></div></div><main class="page">
 <section class="toolbar top-toolbar compact-range-toolbar"><div class="compact-range-title"><h2>เลือกช่วงวันที่ Dashboard</h2><p class="date-helper">เลือกช่วงวันที่แบบใหม่ มีผลกับข้อมูลทั้งหน้า Dashboard</p></div><div class="compact-range-control"><button class="range-main" id="rangeOpenBtn" type="button"><span class="range-icon">📅</span><span id="rangeDisplayText">01 May 2026 → 31 May 2026</span></button><input id="rangePicker" type="text" aria-label="เลือกช่วงวันที่" autocomplete="off"><input id="startDate" type="hidden"><input id="endDate" type="hidden"><div class="quick-actions"><button class="quick-btn" id="todayBtn" type="button">วันนี้</button><button class="quick-btn" id="thisWeekBtn" type="button">สัปดาห์นี้</button><button class="quick-btn active" id="thisMonthBtn" type="button">เดือนนี้</button><button class="quick-btn muted" id="resetBtn" type="button">ดูทั้งหมด</button><a class="quick-btn nav-btn" href="/executive">Executive AI</a><button class="quick-btn theme-toggle" id="themeToggleBtn" type="button">🌙 Dark</button></div></div></section>
@@ -331,7 +408,7 @@ body.dark .flatpickr-calendar option{
 
 <section class="toolbar daily-toolbar"><h2>รายการแยกรายวัน</h2><div class="filter-group daily-filter-group"><input class="search-input" id="searchBox" placeholder="ค้นหาทะเบียน / เลขกรมธรรม์ / บริษัท"><select class="date-select" id="dateFilter"><option value="all">ดูทั้งหมด</option></select><button class="btn btn2" id="showAllBtn">ดูทั้งหมด</button><button class="btn btnToggle active" id="viewModeToggleBtn" type="button">📄 Detail</button><button class="btn btnDark" id="exportPdfBtn">Export PDF</button><button class="btn btnDark" id="exportExcelBtn">Export Excel</button></div></section>
 <section class="daily-grid" id="cards"></section><div class="pagination"><button class="btn btn2" id="prevPageBtn">ก่อนหน้า</button><span class="page-info" id="pageInfo">Page 1</span><button class="btn btn2" id="nextPageBtn">ถัดไป</button></div><p class="status-pill" id="status">Loading...</p>
-<div class="version-credit">Version: v14.10 Datepicker Dark Mode Fix</div>
+<div class="version-credit">Version: v14.11 Mobile Responsive Polish</div>
 </main>
 <script>
 let report=null,allDays=[],filteredDays=[],viewDays=[],dailyChart=null,rangePickerInstance=null;let currentPage=1,pageSize=8,viewMode='detail',activeSelected='all';const box=id=>document.getElementById(id);const money=n=>Math.round(n||0).toLocaleString('th-TH');function destroy(){if(dailyChart)dailyChart.destroy()}function fmtDate(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}function parseISODate(v){const parts=String(v||'').split('-').map(Number);return parts.length===3?new Date(parts[0],parts[1]-1,parts[2]):new Date()}function prettyRange(s,e){if(!s&&!e)return 'ข้อมูลสะสมทั้งหมด';const opt={day:'2-digit',month:'short',year:'numeric'};const a=s?parseISODate(s).toLocaleDateString('en-GB',opt):'เริ่มต้น';const b=e?parseISODate(e).toLocaleDateString('en-GB',opt):'สิ้นสุด';return `${a} → ${b}`}function updateRangeLabel(){const s=box('startDate')?.value||'',e=box('endDate')?.value||'';if(box('rangeDisplayText'))box('rangeDisplayText').textContent=prettyRange(s,e);if(rangePickerInstance&&s&&e)rangePickerInstance.setDate([s,e],false,'Y-m-d')}function setActiveQuick(id){['todayBtn','thisWeekBtn','thisMonthBtn'].forEach(x=>box(x)?.classList.remove('active'));if(id)box(id)?.classList.add('active')}function setRange(start,end,quickId){box('startDate').value=start||'';box('endDate').value=end||'';setActiveQuick(quickId);updateRangeLabel()}function setCurrentMonthDefault(){const now=new Date();setRange(fmtDate(new Date(now.getFullYear(),now.getMonth(),1)),fmtDate(new Date(now.getFullYear(),now.getMonth()+1,0)),'thisMonthBtn')}function setToday(){const now=new Date();setRange(fmtDate(now),fmtDate(now),'todayBtn')}function setThisWeek(){const now=new Date();const day=now.getDay();const diffToMonday=(day===0?-6:1-day);const start=new Date(now);start.setDate(now.getDate()+diffToMonday);const end=new Date(start);end.setDate(start.getDate()+6);setRange(fmtDate(start),fmtDate(end),'thisWeekBtn')}function setupRange(){const dates=allDays.map(d=>d.isoDate).filter(Boolean).sort();if(!box('startDate').value)box('startDate').value=dates[0]||'';if(!box('endDate').value)box('endDate').value=dates[dates.length-1]||'';updateRangeLabel()}function itemText(item){return (item&&typeof item==='object')?(item.text||''):String(item||'')}function itemNet(item){return Number((item&&typeof item==='object')?(item.net_amount||0):0)||0}function itemCollected(item){return Number((item&&typeof item==='object')?(item.collected_amount||0):0)||0}function flattenRows(days){const rows=[];days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item:itemText(item),net_amount:itemNet(item),collected_amount:itemCollected(item)}))));return rows}
@@ -585,6 +662,83 @@ body.dark .flatpickr-calendar select,
 body.dark .flatpickr-calendar option{
   background:#0f172a!important;
   color:#f8fafc!important;
+}
+
+
+
+/* v14.11 Mobile Responsive Polish */
+@media (hover:none), (pointer:coarse){
+  .total-card:hover,.panel:hover,.toolbar:hover,.hybrid-card:hover,.kpi:hover,.day-card:hover,.breakdown-row:hover,li:hover,.summary-subitem:hover{
+    transform:none!important;
+    box-shadow:inherit!important;
+  }
+}
+@media(max-width:760px){
+  .page{width:100%;padding:14px 12px 44px;overflow-x:hidden}
+  .compact-range-toolbar{position:relative;top:auto;border-radius:20px;padding:14px 12px;margin-bottom:14px}
+  .compact-range-title h2{font-size:18px;line-height:1.25}
+  .range-main{height:auto;min-height:44px;padding:10px 12px;text-align:center;line-height:1.25;white-space:normal}
+  .quick-actions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;border-radius:18px;width:100%}
+  .quick-btn,.apply-compact{min-width:0!important;width:100%;font-size:12px;padding:0 8px}
+  .hero{grid-template-columns:1fr!important;gap:12px;margin-bottom:14px}
+  .hybrid-card,.total-card,.toolbar,.day-card{border-radius:20px!important}
+  .hybrid-card,.total-card{padding:16px!important}
+  .hybrid-card.primary h2{font-size:22px!important}
+  .hybrid-total,.amount{font-size:34px!important}
+  .status-pill{max-width:100%;font-size:11px;padding:7px 10px;white-space:normal}
+  .breakdown-row{grid-template-columns:1fr;gap:8px;padding:11px 12px}
+  .break-meta{justify-content:space-between;width:100%}
+  .summary-table{font-size:13px;table-layout:fixed}
+  .summary-table th,.summary-table td{padding:10px 6px!important}
+  .summary-table th:nth-child(1),.summary-table td:nth-child(1){width:46%}
+  .summary-table th:nth-child(2),.summary-table td:nth-child(2),
+  .summary-table th:nth-child(3),.summary-table td:nth-child(3){width:27%;text-align:right}
+  .row-title{gap:6px;flex-wrap:wrap;align-items:center}
+  .breakdown-toggle-btn{margin-left:0!important;margin-top:5px;padding:5px 8px!important;font-size:10px!important;max-width:100%}
+  .summary-slide-row td{padding:0!important}
+  .summary-slide.open{padding:10px 0 14px!important}
+  .summary-subitem{grid-template-columns:1fr 1fr!important;padding:10px 12px!important;gap:7px!important}
+  .summary-subitem .sub-category-name{grid-column:1/-1;font-size:13px}
+  .summary-subitem b{text-align:left!important;font-size:13px}
+  .kpi-grid{grid-template-columns:1fr!important;gap:10px}
+  .kpi{padding:16px!important;border-radius:18px!important}
+  .toolbar.daily-toolbar{padding:16px 12px!important;border-radius:20px!important;gap:14px}
+  .daily-filter-group{display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+  .daily-filter-group .search-input,.daily-filter-group .date-select,.daily-filter-group .btn,.daily-filter-group .nav-btn{
+    width:100%!important;min-width:0!important;max-width:none!important;grid-column:auto!important;height:42px;font-size:12px
+  }
+  .daily-grid{grid-template-columns:1fr!important;gap:12px}
+  .day-head{padding:14px 12px!important;display:grid!important;grid-template-columns:1fr;gap:10px}
+  .day-title{font-size:15px!important;line-height:1.35}
+  .quick-summary,.day-tags{justify-content:flex-start!important;gap:6px}
+  .badge,.mini-chip{font-size:11px;padding:4px 8px}
+  .day-body{padding:0 12px!important}
+  .day-card.open .day-body{padding:0 12px 14px!important;max-height:none!important}
+  .day-money-summary{grid-template-columns:1fr!important;gap:8px;margin:12px 0 4px}
+  .money-pill{padding:10px 12px;border-radius:14px}
+  .money-pill strong{font-size:18px}
+  .vehicle-title-row{display:grid!important;grid-template-columns:1fr;gap:8px;align-items:start}
+  .vehicle-money,.item-money{justify-content:flex-start!important;gap:5px}
+  .vehicle-item-row{display:grid!important;grid-template-columns:1fr;gap:8px;align-items:start}
+  li{padding:9px 10px;font-size:12px;overflow-wrap:anywhere;word-break:break-word}
+  .money-chip,.item-money span{font-size:11px;padding:4px 7px}
+  .company{font-size:11px}
+  .pagination{gap:8px}.pagination .btn{width:auto!important;min-width:88px;font-size:12px;padding:9px 12px}
+  .page-info{font-size:12px;text-align:center;width:100%}
+  .version-credit{position:static!important;display:inline-block;margin:16px 0 0 0;font-size:10px;max-width:100%}
+}
+@media(max-width:420px){
+  .page{padding-left:10px;padding-right:10px}
+  .quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .summary-table{font-size:12px}
+  .summary-table th,.summary-table td{padding:9px 4px!important}
+  .amount,.hybrid-total{font-size:30px!important}
+  .money-chip,.item-money span{white-space:normal;line-height:1.25}
+}
+@media(max-width:520px){
+  .flatpickr-calendar{max-width:calc(100vw - 24px)!important;left:12px!important;right:12px!important;width:auto!important;box-sizing:border-box!important}
+  .flatpickr-days,.dayContainer{max-width:100%!important;width:100%!important;min-width:0!important}
+  .flatpickr-day{max-width:14.285%!important;width:14.285%!important;height:38px!important;line-height:38px!important}
 }
 
 </style></head><body><h1>Vehicle Dashboard</h1><div>Export: ${escapeHtml(printedAt)}</div><div class="summary"><div class="card">ยอดเก็บจริง<div class="value">${escapeHtml(totalAmount)}</div></div><div class="card">ยอดสุทธิตามระบบ<div class="value">${escapeHtml(netAmount)}</div></div></div><table><thead><tr><th>วันที่</th><th>ประเภทรถ</th><th>บริษัท</th><th>รายการ</th><th>ยอดสุทธิ</th><th>ยอดเก็บจริง</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.company)}</td><td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.net_amount)}</td><td>${escapeHtml(r.collected_amount)}</td></tr>`).join('')}</tbody></table></body></html>`;
