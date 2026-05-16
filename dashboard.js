@@ -80,7 +80,36 @@ function getDayMeta(list,day){const totals=list.map(d=>d.motorcycle+d.pickup+d.s
 function buildDetails(day){return day.groups.map(g=>`<div class="vehicle-group"><div class="vehicle-title">${g.icon} ${g.title} (${g.items.length} คัน)</div>${g.company?`<span class="company">${g.company}</span>`:''}<ul>${g.items.map(i=>`<li>${itemText(i)}</li>`).join('')}</ul></div>`).join('')}
 function toggleDay(btn,index){const card=btn.closest('.day-card');const body=card.querySelector('.day-body');if(card.classList.contains('open')){card.classList.remove('open');return}if(!body.dataset.loaded){const day=viewDays[index];body.innerHTML=buildDetails(day);body.dataset.loaded='1'}card.classList.add('open')}
 function renderCards(selected='all'){activeSelected=selected;const list=getCardList(selected);viewDays=list;const totalPages=Math.max(1,Math.ceil(list.length/pageSize));if(currentPage>totalPages)currentPage=totalPages;const start=(currentPage-1)*pageSize;const pageItems=list.slice(start,start+pageSize);box('cards').classList.toggle('compact',viewMode==='compact');box('pageInfo').textContent=`หน้า ${currentPage}/${totalPages} • แสดง ${pageItems.length}/${list.length} วัน`;box('prevPageBtn').disabled=currentPage<=1;box('nextPageBtn').disabled=currentPage>=totalPages;if(!pageItems.length){box('cards').innerHTML='<article class="day-card"><button class="day-head"><span class="day-title">ไม่พบข้อมูล</span></button></article>';return}box('cards').innerHTML=pageItems.map((day,idx)=>{const globalIndex=start+idx;const meta=getDayMeta(list,day);const compact=viewMode==='compact';const open=!compact&&idx<2;const tags=meta.tags.map(t=>`<span class="badge ${t.includes('Peak')?'tag-peak':t.includes('Low')?'tag-low':'tag-high'}">${t}</span>`).join('');const summary=`<div class="quick-summary"><span class="mini-chip">🏍 ${day.motorcycle}</span><span class="mini-chip">🚛 ${day.pickup}</span><span class="mini-chip">🚗 ${day.sedan}</span></div>`;const bodyContent=open?buildDetails(day):'';return `<article class="day-card ${meta.cls} ${compact?'compact-card':''} ${open?'open':''}"><button class="day-head" onclick="toggleDay(this,${globalIndex})"><span class="day-main"><span class="day-title">📊 วันที่ ${day.date}</span>${summary}</span><span class="day-tags">${tags}<span class="badge">รวม ${meta.total} คัน</span><span class="chev">⌄</span></span></button><div class="day-body" data-loaded="${open?'1':''}">${bodyContent}</div></article>`}).join('')}
-function exportExcel(){const rows=flattenRows(viewDays.length?viewDays:filteredDays);const summaryRows=[{หมวด:'ยอดเก็บจริงรวมทั้งหมด',ยอด:box('netTotalAmount').textContent.replace(' บาท',''),หน่วย:'บาท'},{หมวด:'ยอดสุทธิตามระบบรวมทั้งหมด',ยอด:box('collectedTotalAmount').textContent.replace(' บาท',''),หน่วย:'บาท'},{หมวด:'รถยนต์ - ยอดสุทธิ',ยอด:box('carNetAmount').textContent.replace(' บาท',''),หน่วย:'บาท'},{หมวด:'รถยนต์ - ยอดเก็บจริง',ยอด:box('carCollectedAmount').textContent.replace(' บาท',''),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์ - ยอดสุทธิ',ยอด:box('motorNetAmount').textContent.replace(' บาท',''),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์ - ยอดเก็บจริง',ยอด:box('motorCollectedAmount').textContent.replace(' บาท',''),หน่วย:'บาท'},{หมวด:'รถจักรยานยนต์',ยอด:box('motorCount').textContent,หน่วย:'คัน'},{หมวด:'รถกระบะ',ยอด:box('pickupCount').textContent,หน่วย:'คัน'},{หมวด:'รถยนต์เก๋ง',ยอด:box('sedanCount').textContent,หน่วย:'คัน'},{หมวด:'จำนวนรถรวมทั้งหมด',ยอด:box('allCount').textContent,หน่วย:'คัน'}];const wsSummary=XLSX.utils.json_to_sheet(summaryRows);const wsDetail=XLSX.utils.json_to_sheet(rows.map(r=>({วันที่:r.date,ประเภทรถ:r.type,บริษัท:r.company,รายการ:r.item,ยอดสุทธิตามระบบ:r.net_amount,ยอดเก็บจริง:r.collected_amount})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,wsSummary,'Summary');XLSX.utils.book_append_sheet(wb,wsDetail,'Detail');XLSX.writeFile(wb,'vehicle-dashboard.xlsx')}
+function exportExcel(){
+ const safeText=(id,fallback='0')=>box(id)?.textContent?.replace(' บาท','')||fallback;
+ const rows=flattenRows(viewDays.length?viewDays:filteredDays);
+ const sourceDays=(viewDays.length?viewDays:filteredDays)||[];
+ const counts=sourceDays.reduce((acc,day)=>{
+   acc.motorcycle+=Number(day.motorcycle||0);
+   acc.pickup+=Number(day.pickup||0);
+   acc.sedan+=Number(day.sedan||0);
+   return acc;
+ },{motorcycle:0,pickup:0,sedan:0});
+ counts.all=counts.motorcycle+counts.pickup+counts.sedan;
+ const summaryRows=[
+  {หมวด:'ยอดเก็บจริงรวมทั้งหมด',ยอด:safeText('netTotalAmount'),หน่วย:'บาท'},
+  {หมวด:'ยอดสุทธิตามระบบรวมทั้งหมด',ยอด:safeText('collectedTotalAmount'),หน่วย:'บาท'},
+  {หมวด:'รถยนต์ - ยอดสุทธิ',ยอด:safeText('carNetAmount'),หน่วย:'บาท'},
+  {หมวด:'รถยนต์ - ยอดเก็บจริง',ยอด:safeText('carCollectedAmount'),หน่วย:'บาท'},
+  {หมวด:'รถจักรยานยนต์ - ยอดสุทธิ',ยอด:safeText('motorNetAmount'),หน่วย:'บาท'},
+  {หมวด:'รถจักรยานยนต์ - ยอดเก็บจริง',ยอด:safeText('motorCollectedAmount'),หน่วย:'บาท'},
+  {หมวด:'รถจักรยานยนต์',ยอด:counts.motorcycle,หน่วย:'คัน'},
+  {หมวด:'รถกระบะ',ยอด:counts.pickup,หน่วย:'คัน'},
+  {หมวด:'รถยนต์เก๋ง',ยอด:counts.sedan,หน่วย:'คัน'},
+  {หมวด:'จำนวนรถรวมทั้งหมด',ยอด:counts.all,หน่วย:'คัน'}
+ ];
+ const wsSummary=XLSX.utils.json_to_sheet(summaryRows);
+ const wsDetail=XLSX.utils.json_to_sheet(rows.map(r=>({วันที่:r.date,ประเภทรถ:r.type,บริษัท:r.company,รายการ:r.item,ยอดสุทธิตามระบบ:r.net_amount,ยอดเก็บจริง:r.collected_amount})));
+ const wb=XLSX.utils.book_new();
+ XLSX.utils.book_append_sheet(wb,wsSummary,'Summary');
+ XLSX.utils.book_append_sheet(wb,wsDetail,'Detail');
+ XLSX.writeFile(wb,'vehicle-dashboard.xlsx')
+}
 function escapeHtml(text){return String(text||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#039;")}
 function exportPDF(){
  const rows=flattenRows(viewDays.length?viewDays:filteredDays);
