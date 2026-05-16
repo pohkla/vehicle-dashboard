@@ -21,7 +21,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-APP_VERSION = "v6.12.4 Money Detail Order UI"
+APP_VERSION = "v14 Executive AI + Dark Mode + Search Layout Fix"
 app = FastAPI(title=f"Vehicle Dashboard {APP_VERSION}")
 
 
@@ -800,6 +800,17 @@ box('applyBtn').onclick=()=>load();box('resetBtn').onclick=()=>{setRange('','','
 </script></body></html>
 """
 
+
+
+def read_html_file(filename: str, fallback: str) -> str:
+    """Read an HTML file located beside app.py; fallback to embedded HTML if missing."""
+    try:
+        html_path = Path(__file__).resolve().parent / filename
+        if html_path.exists():
+            return html_path.read_text(encoding="utf-8")
+    except Exception:
+        pass
+    return fallback
 
 
 @app.get("/", include_in_schema=False)
