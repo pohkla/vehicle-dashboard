@@ -809,12 +809,17 @@ def root() -> RedirectResponse:
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin_page() -> str:
-    return ADMIN_HTML
+    return read_html_file("admin.html", ADMIN_HTML)
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_page() -> str:
-    return DASHBOARD_HTML.replace("__APP_VERSION__", APP_VERSION)
+    return read_html_file("dashboard.html", DASHBOARD_HTML).replace("__APP_VERSION__", APP_VERSION)
+
+
+@app.get("/executive", response_class=HTMLResponse)
+def executive_page() -> str:
+    return read_html_file("executive.html", "<h1>Executive Summary AI</h1><p>executive.html not found</p>")
 
 
 @app.post("/api/import")
