@@ -64,6 +64,101 @@ body.dark input::placeholder{color:#94a3b8}
 
 /* v14.7 visual-noise polish */
 .summary-table th,.summary-table td{border-bottom:1px solid rgba(15,23,42,.075)!important;vertical-align:middle}.summary-table th{font-weight:800;color:#111827}.summary-table td{font-weight:500}.summary-table td:nth-child(2),.summary-table td:nth-child(3){font-weight:600}.summary-table td:last-child{font-weight:800}.summary-table .clickable-row{transition:background .2s ease,transform .2s ease}.summary-table .clickable-row:hover{background:rgba(37,99,235,.035)!important}.row-title,.main-category-title{font-weight:800!important}.breakdown-toggle-btn{margin-left:14px;padding:6px 11px;border-radius:999px;border:1px solid rgba(37,99,235,.13)!important;background:rgba(239,246,255,.62)!important;color:#2563eb!important;font-size:11px!important;font-weight:700!important;box-shadow:none!important;opacity:.86;transform:none!important}.breakdown-toggle-btn:hover{opacity:1;border-color:rgba(37,99,235,.24)!important;background:rgba(239,246,255,.88)!important;box-shadow:0 0 0 4px rgba(37,99,235,.055)!important}.toggle-caret{font-size:12px;line-height:1;transition:transform .25s ease}.summary-table .clickable-row.open .toggle-caret{transform:rotate(180deg)}.summary-slide-row td{padding:0 12px!important;border-bottom:0!important}.summary-slide.open{padding:14px 0 18px!important}.summary-subgrid{gap:12px!important}.summary-subitem{border:1px solid rgba(15,23,42,.065)!important;background:rgba(248,250,252,.58)!important;border-radius:16px!important;padding:12px 16px!important;box-shadow:none!important;transition:background .2s ease,border-color .2s ease,transform .2s ease}.summary-subitem:hover{background:rgba(248,250,252,.82)!important;border-color:rgba(37,99,235,.12)!important;transform:translateY(-1px)}.summary-subitem .sub-category-name{font-weight:500!important;color:#334155!important;opacity:.92}.summary-subitem b{font-weight:600!important;text-align:right}.summary-subitem .net{color:#3b82f6!important}.summary-subitem .collected{color:#0f766e!important}.summary-table tr.main-category-row td{font-weight:700}.summary-table tr.main-category-row td:first-child{font-weight:800}.summary-table tr.main-category-row td:last-child{font-weight:800}body.dark .summary-table th,body.dark .summary-table td{border-bottom-color:rgba(148,163,184,.16)!important}body.dark .summary-table th{color:#e5e7eb}body.dark .breakdown-toggle-btn{background:rgba(30,58,138,.24)!important;color:#bfdbfe!important;border-color:rgba(147,197,253,.18)!important;box-shadow:none!important}body.dark .breakdown-toggle-btn:hover{background:rgba(30,58,138,.38)!important;border-color:rgba(147,197,253,.32)!important;box-shadow:0 0 0 4px rgba(59,130,246,.10)!important}body.dark .summary-subitem{background:rgba(15,23,42,.46)!important;border-color:rgba(148,163,184,.14)!important}body.dark .summary-subitem:hover{background:rgba(15,23,42,.66)!important;border-color:rgba(96,165,250,.22)!important}body.dark .summary-subitem .sub-category-name{color:#cbd5e1!important}body.dark .summary-subitem .net{color:#93c5fd!important}body.dark .summary-subitem .collected{color:#5eead4!important}
+
+
+/* v14.8 Dark Mode Contrast Polish */
+body.dark{
+  --text:#f8fafc;
+  --muted:rgba(255,255,255,.68);
+  --line:rgba(255,255,255,.08);
+  color:var(--text);
+}
+body.dark h1,body.dark h2,body.dark h3,
+body.dark .day-title,body.dark .row-title,body.dark .main-category-title,
+body.dark .break-left,body.dark .vehicle-title,
+body.dark .summary-table th,body.dark .summary-table td,
+body.dark .kpi-title,body.dark .company-kpi h3,
+body.dark .toolbar h2{color:#f8fafc;}
+body.dark .label,body.dark .page-info,body.dark .date-helper,
+body.dark .hybrid-label,body.dark .percent,
+body.dark .quick-summary,body.dark .money-pill span,body.dark .money-pill small{
+  color:rgba(255,255,255,.68);
+}
+body.dark .search-input::placeholder,
+body.dark input::placeholder{
+  color:rgba(255,255,255,.72);
+  opacity:1;
+}
+body.dark .date-input,body.dark .date-select,body.dark .search-input,body.dark .range-main{
+  background:rgba(2,6,23,.68);
+  color:#f8fafc;
+  border-color:rgba(255,255,255,.14);
+}
+body.dark .date-select option{background:#0f172a;color:#f8fafc;}
+body.dark .quick-actions,
+body.dark .daily-toolbar,
+body.dark .toolbar,
+body.dark .total-card,
+body.dark .panel,
+body.dark .hybrid-card,
+body.dark .kpi,
+body.dark .day-card{
+  border-color:rgba(255,255,255,.08);
+}
+body.dark .summary-table th,
+body.dark .summary-table td,
+body.dark .day-card.open .day-body{
+  border-color:rgba(255,255,255,.08);
+}
+body.dark .breakdown-toggle-btn{
+  color:#f8fafc;
+  background:linear-gradient(135deg,rgba(37,99,235,.28),rgba(20,184,166,.18));
+  border-color:rgba(147,197,253,.26);
+  box-shadow:0 6px 18px rgba(0,0,0,.18);
+}
+body.dark .breakdown-toggle-btn:hover{
+  color:#ffffff;
+  border-color:rgba(45,212,191,.44);
+  box-shadow:0 10px 28px rgba(59,130,246,.20),0 0 0 4px rgba(45,212,191,.10);
+}
+body.dark .btn:not(.btnDark),body.dark .quick-btn:not(.active){
+  color:rgba(255,255,255,.74);
+  background:rgba(30,41,59,.72);
+  border-color:rgba(255,255,255,.08);
+}
+body.dark .btn.active,body.dark .quick-btn.active,
+body.dark .btn2,body.dark .btnToggle.active{
+  color:#ffffff;
+}
+body.dark .version-credit{
+  color:rgba(255,255,255,.55);
+  opacity:.72;
+  background:rgba(15,23,42,.72);
+  border-color:rgba(255,255,255,.10);
+}
+body.dark .badge.tag-peak,body.dark .badge.tag-high,body.dark .badge.tag-low,
+body.dark .status-pill{filter:saturate(.9);}
+body.dark .summary-subitem{
+  background:rgba(15,23,42,.46);
+  border-color:rgba(255,255,255,.08);
+}
+body.dark .summary-subitem .sub-category-name{color:rgba(255,255,255,.82);font-weight:500;}
+body.dark .summary-subitem .net{color:#93c5fd;font-weight:650;}
+body.dark .summary-subitem .collected{color:#5eead4;font-weight:650;}
+body.dark li{
+  color:#e5e7eb;
+  background:rgba(15,23,42,.60);
+  border-color:rgba(255,255,255,.08);
+}
+body.dark .company,body.dark .mini-chip{
+  color:#f1f5f9;
+  background:rgba(30,41,59,.82);
+  border-color:rgba(255,255,255,.10);
+}
+body.dark .money-chip.net{color:#bfdbfe;background:rgba(37,99,235,.18);border-color:rgba(147,197,253,.28);}
+body.dark .money-chip.collected{color:#99f6e4;background:rgba(20,184,166,.14);border-color:rgba(94,234,212,.28);}
+body.dark .item-money .net{color:#bfdbfe;background:rgba(37,99,235,.18);border-color:rgba(147,197,253,.28);}
+body.dark .item-money .collected{color:#99f6e4;background:rgba(20,184,166,.14);border-color:rgba(94,234,212,.28);}
 </style></head>
 <body><div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><span class="spinner"></span><span id="loadingText">กำลังโหลดข้อมูล...</span></div></div><main class="page">
 <section class="toolbar top-toolbar compact-range-toolbar"><div class="compact-range-title"><h2>เลือกช่วงวันที่ Dashboard</h2><p class="date-helper">เลือกช่วงวันที่แบบใหม่ มีผลกับข้อมูลทั้งหน้า Dashboard</p></div><div class="compact-range-control"><button class="range-main" id="rangeOpenBtn" type="button"><span class="range-icon">📅</span><span id="rangeDisplayText">01 May 2026 → 31 May 2026</span></button><input id="rangePicker" type="text" aria-label="เลือกช่วงวันที่" autocomplete="off"><input id="startDate" type="hidden"><input id="endDate" type="hidden"><div class="quick-actions"><button class="quick-btn" id="todayBtn" type="button">วันนี้</button><button class="quick-btn" id="thisWeekBtn" type="button">สัปดาห์นี้</button><button class="quick-btn active" id="thisMonthBtn" type="button">เดือนนี้</button><button class="quick-btn muted" id="resetBtn" type="button">ดูทั้งหมด</button><a class="quick-btn nav-btn" href="/executive">Executive AI</a><button class="quick-btn theme-toggle" id="themeToggleBtn" type="button">🌙 Dark</button></div></div></section>
