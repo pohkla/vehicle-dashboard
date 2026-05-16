@@ -21,7 +21,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-APP_VERSION = "v14.4 Slide Money Breakdown"
+APP_VERSION = "v14.9 Dark Mode Contrast Final"
 app = FastAPI(title=f"Vehicle Dashboard {APP_VERSION}")
 
 
