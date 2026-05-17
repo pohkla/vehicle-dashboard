@@ -395,6 +395,82 @@ body.dark .flatpickr-calendar option{
   .flatpickr-day{max-width:14.285%!important;width:14.285%!important;height:38px!important;line-height:38px!important}
 }
 
+
+
+/* v14.12 REAL Mobile/Tablet Responsive Fix - strongest final overrides */
+html,body{max-width:100%;overflow-x:hidden;}
+img,canvas,svg,table{max-width:100%;}
+
+/* Tablet and narrow desktop: reduce sticky/overlay feeling and make cards breathe */
+@media(max-width:1024px){
+  .page{width:100%!important;padding:18px 14px 46px!important;overflow-x:hidden!important;}
+  .compact-range-toolbar,.top-toolbar{position:relative!important;top:auto!important;z-index:5!important;margin-bottom:14px!important;}
+  .compact-range-toolbar{display:grid!important;grid-template-columns:1fr!important;gap:12px!important;border-radius:22px!important;}
+  .compact-range-control{display:grid!important;grid-template-columns:1fr!important;width:100%!important;gap:10px!important;}
+  .range-main{width:100%!important;min-width:0!important;justify-content:center!important;white-space:normal!important;text-align:center!important;}
+  .quick-actions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;width:100%!important;height:auto!important;border-radius:18px!important;gap:8px!important;padding:8px!important;}
+  .quick-btn,.apply-compact{width:100%!important;min-width:0!important;height:40px!important;padding:0 10px!important;font-size:13px!important;}
+  .hero,.section-grid,.daily-grid{grid-template-columns:1fr!important;gap:14px!important;}
+  .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important;}
+  .toolbar.daily-toolbar{position:relative!important;top:auto!important;display:grid!important;grid-template-columns:1fr!important;padding:18px 14px!important;gap:14px!important;}
+  .daily-filter-group{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important;}
+  .daily-filter-group .search-input{grid-column:1 / -1!important;width:100%!important;min-width:0!important;max-width:none!important;}
+  .daily-filter-group .date-select{grid-column:1 / -1!important;width:100%!important;min-width:0!important;}
+  .daily-filter-group .btn,.daily-filter-group .nav-btn{width:100%!important;min-width:0!important;}
+}
+
+/* Phone layout */
+@media(max-width:640px){
+  .page{padding:12px 10px 36px!important;}
+  .compact-range-title h2{font-size:18px!important;line-height:1.25!important;}
+  .compact-range-title .date-helper{font-size:12px!important;line-height:1.35!important;}
+  .range-main{min-height:46px!important;font-size:12px!important;line-height:1.3!important;padding:10px!important;}
+  .range-icon{width:28px!important;height:28px!important;flex:0 0 auto!important;}
+  .quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  .quick-btn,.apply-compact{font-size:12px!important;height:38px!important;}
+  .hybrid-card,.total-card,.toolbar,.day-card,.kpi{border-radius:18px!important;}
+  .hybrid-card,.total-card,.kpi{padding:14px!important;}
+  .hybrid-head{display:grid!important;grid-template-columns:1fr!important;gap:10px!important;}
+  .hybrid-total,.amount{font-size:30px!important;line-height:1.1!important;}
+  .status-pill{font-size:10.5px!important;padding:7px 9px!important;max-width:100%!important;overflow-wrap:anywhere!important;}
+  .breakdown-row{display:grid!important;grid-template-columns:1fr!important;gap:8px!important;}
+  .break-meta{width:100%!important;justify-content:space-between!important;}
+  .summary-table{display:block!important;width:100%!important;overflow-x:hidden!important;font-size:12px!important;}
+  .summary-table tbody,.summary-table tr{display:block!important;width:100%!important;}
+  .summary-table th{display:none!important;}
+  .summary-table td{display:grid!important;grid-template-columns:1fr!important;width:100%!important;text-align:left!important;padding:8px 4px!important;border-bottom:0!important;}
+  .summary-table tr{border-bottom:1px solid var(--line)!important;padding:8px 0!important;}
+  .summary-table .clickable-row td:nth-child(2)::before{content:'ยอดสุทธิ';display:block;color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;}
+  .summary-table .clickable-row td:nth-child(3)::before{content:'ยอดเก็บจริง';display:block;color:var(--muted);font-size:11px;font-weight:700;margin-bottom:2px;}
+  .row-title{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;flex-wrap:wrap!important;}
+  .breakdown-toggle-btn{margin-left:0!important;font-size:10px!important;padding:5px 8px!important;}
+  .summary-slide-row td{display:block!important;padding:0!important;}
+  .summary-subitem{grid-template-columns:1fr!important;gap:5px!important;padding:10px!important;}
+  .summary-subitem b{text-align:left!important;}
+  .kpi-grid{grid-template-columns:1fr!important;}
+  .daily-filter-group{grid-template-columns:1fr!important;}
+  .daily-filter-group .search-input,.daily-filter-group .date-select,.daily-filter-group .btn,.daily-filter-group .nav-btn{height:40px!important;font-size:12px!important;}
+  .day-head{display:grid!important;grid-template-columns:1fr!important;padding:13px 12px!important;gap:10px!important;}
+  .day-tags,.quick-summary{justify-content:flex-start!important;gap:6px!important;}
+  .day-title{font-size:15px!important;line-height:1.3!important;}
+  .day-card.open .day-body{max-height:none!important;padding:0 12px 14px!important;}
+  .day-money-summary{grid-template-columns:1fr!important;}
+  .vehicle-title-row,.vehicle-item-row{display:grid!important;grid-template-columns:1fr!important;gap:7px!important;}
+  .vehicle-money,.item-money{justify-content:flex-start!important;}
+  li{font-size:12px!important;word-break:break-word!important;overflow-wrap:anywhere!important;}
+  .pagination{display:grid!important;grid-template-columns:1fr!important;gap:8px!important;}
+  .pagination .btn{width:100%!important;}
+  .page-info{width:100%!important;text-align:center!important;font-size:12px!important;}
+  .version-credit{position:static!important;margin-top:14px!important;display:inline-block!important;font-size:10px!important;}
+}
+
+/* Extra small phone */
+@media(max-width:390px){
+  .quick-actions{grid-template-columns:1fr!important;}
+  .hybrid-total,.amount{font-size:27px!important;}
+  .mini-chip,.badge,.money-chip,.item-money span{font-size:10.5px!important;}
+}
+
 </style></head>
 <body><div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><span class="spinner"></span><span id="loadingText">กำลังโหลดข้อมูล...</span></div></div><main class="page">
 <section class="toolbar top-toolbar compact-range-toolbar"><div class="compact-range-title"><h2>เลือกช่วงวันที่ Dashboard</h2><p class="date-helper">เลือกช่วงวันที่แบบใหม่ มีผลกับข้อมูลทั้งหน้า Dashboard</p></div><div class="compact-range-control"><button class="range-main" id="rangeOpenBtn" type="button"><span class="range-icon">📅</span><span id="rangeDisplayText">01 May 2026 → 31 May 2026</span></button><input id="rangePicker" type="text" aria-label="เลือกช่วงวันที่" autocomplete="off"><input id="startDate" type="hidden"><input id="endDate" type="hidden"><div class="quick-actions"><button class="quick-btn" id="todayBtn" type="button">วันนี้</button><button class="quick-btn" id="thisWeekBtn" type="button">สัปดาห์นี้</button><button class="quick-btn active" id="thisMonthBtn" type="button">เดือนนี้</button><button class="quick-btn muted" id="resetBtn" type="button">ดูทั้งหมด</button><a class="quick-btn nav-btn" href="/executive">Executive AI</a><button class="quick-btn theme-toggle" id="themeToggleBtn" type="button">🌙 Dark</button></div></div></section>
@@ -408,7 +484,7 @@ body.dark .flatpickr-calendar option{
 
 <section class="toolbar daily-toolbar"><h2>รายการแยกรายวัน</h2><div class="filter-group daily-filter-group"><input class="search-input" id="searchBox" placeholder="ค้นหาทะเบียน / เลขกรมธรรม์ / บริษัท"><select class="date-select" id="dateFilter"><option value="all">ดูทั้งหมด</option></select><button class="btn btn2" id="showAllBtn">ดูทั้งหมด</button><button class="btn btnToggle active" id="viewModeToggleBtn" type="button">📄 Detail</button><button class="btn btnDark" id="exportPdfBtn">Export PDF</button><button class="btn btnDark" id="exportExcelBtn">Export Excel</button></div></section>
 <section class="daily-grid" id="cards"></section><div class="pagination"><button class="btn btn2" id="prevPageBtn">ก่อนหน้า</button><span class="page-info" id="pageInfo">Page 1</span><button class="btn btn2" id="nextPageBtn">ถัดไป</button></div><p class="status-pill" id="status">Loading...</p>
-<div class="version-credit">Version: v14.11 Mobile Responsive Polish</div>
+<div class="version-credit">Version: v14.12 Mobile Real Responsive Fix</div>
 </main>
 <script>
 let report=null,allDays=[],filteredDays=[],viewDays=[],dailyChart=null,rangePickerInstance=null;let currentPage=1,pageSize=8,viewMode='detail',activeSelected='all';const box=id=>document.getElementById(id);const money=n=>Math.round(n||0).toLocaleString('th-TH');function destroy(){if(dailyChart)dailyChart.destroy()}function fmtDate(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}function parseISODate(v){const parts=String(v||'').split('-').map(Number);return parts.length===3?new Date(parts[0],parts[1]-1,parts[2]):new Date()}function prettyRange(s,e){if(!s&&!e)return 'ข้อมูลสะสมทั้งหมด';const opt={day:'2-digit',month:'short',year:'numeric'};const a=s?parseISODate(s).toLocaleDateString('en-GB',opt):'เริ่มต้น';const b=e?parseISODate(e).toLocaleDateString('en-GB',opt):'สิ้นสุด';return `${a} → ${b}`}function updateRangeLabel(){const s=box('startDate')?.value||'',e=box('endDate')?.value||'';if(box('rangeDisplayText'))box('rangeDisplayText').textContent=prettyRange(s,e);if(rangePickerInstance&&s&&e)rangePickerInstance.setDate([s,e],false,'Y-m-d')}function setActiveQuick(id){['todayBtn','thisWeekBtn','thisMonthBtn'].forEach(x=>box(x)?.classList.remove('active'));if(id)box(id)?.classList.add('active')}function setRange(start,end,quickId){box('startDate').value=start||'';box('endDate').value=end||'';setActiveQuick(quickId);updateRangeLabel()}function setCurrentMonthDefault(){const now=new Date();setRange(fmtDate(new Date(now.getFullYear(),now.getMonth(),1)),fmtDate(new Date(now.getFullYear(),now.getMonth()+1,0)),'thisMonthBtn')}function setToday(){const now=new Date();setRange(fmtDate(now),fmtDate(now),'todayBtn')}function setThisWeek(){const now=new Date();const day=now.getDay();const diffToMonday=(day===0?-6:1-day);const start=new Date(now);start.setDate(now.getDate()+diffToMonday);const end=new Date(start);end.setDate(start.getDate()+6);setRange(fmtDate(start),fmtDate(end),'thisWeekBtn')}function setupRange(){const dates=allDays.map(d=>d.isoDate).filter(Boolean).sort();if(!box('startDate').value)box('startDate').value=dates[0]||'';if(!box('endDate').value)box('endDate').value=dates[dates.length-1]||'';updateRangeLabel()}function itemText(item){return (item&&typeof item==='object')?(item.text||''):String(item||'')}function itemNet(item){return Number((item&&typeof item==='object')?(item.net_amount||0):0)||0}function itemCollected(item){return Number((item&&typeof item==='object')?(item.collected_amount||0):0)||0}function flattenRows(days){const rows=[];days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item:itemText(item),net_amount:itemNet(item),collected_amount:itemCollected(item)}))));return rows}
