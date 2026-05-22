@@ -1,3 +1,11 @@
+# Vehicle Dashboard v14.13 Expense Excel Integration
+
+## v14.13 Expense Excel Integration
+- เพิ่มการดึง “ยอดค่าใช้จ่าย” จาก Excel
+- รองรับค่าใช้จ่ายแบบสรุปท้ายชีต เช่น รถมอเตอร์ไซต์ / รถยนต์
+- Dashboard แสดง ค่าใช้จ่ายรวม และ คงเหลือสุทธิ = ยอดเก็บจริง - ค่าใช้จ่าย
+- API /api/dashboard คืนค่า amounts.expense และ amounts.profit
+
 # Vehicle Dashboard v6.4 Excel Import Stable Restore
 
 Base: v6.2 company KPI hover.
@@ -17,6 +25,10 @@ Deploy on Render with existing ENV:
 - GITHUB_FILE
 - GITHUB_BRANCH
 
+
+## v14.13 Expense Excel Integration
+- Dashboard version credit, app health version, and admin version are aligned to v14.12.
+- Mobile/tablet responsive overrides included for real device layout.
 
 ## v14.10 Datepicker Dark Mode Fix
 - Fixed Flatpickr calendar contrast in Dark Mode.
