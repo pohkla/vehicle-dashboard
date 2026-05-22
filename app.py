@@ -21,7 +21,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-APP_VERSION = "v14.13.2 Expense Excel Summary Parser"
+APP_VERSION = "v14.13.3 Hide Sub Expense Details"
 app = FastAPI(title=f"Vehicle Dashboard {APP_VERSION}")
 
 
@@ -932,7 +932,13 @@ function exportPDF(){
  const printedAt=new Date().toLocaleString('th-TH');
  const totalAmount=box('netTotalAmount')?.textContent||'0';
  const netAmount=box('collectedTotalAmount')?.textContent||'0';
- const html=`<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>Vehicle Dashboard PDF</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#172033}h1{margin:0 0 8px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border-bottom:1px solid #ddd;padding:8px;text-align:left}.summary{display:flex;gap:12px;margin:16px 0}.card{border:1px solid #ddd;border-radius:12px;padding:12px;min-width:160px}.value{font-size:24px;font-weight:800;color:#2563eb}</style></head><body><h1>Vehicle Dashboard</h1><div>Export: ${escapeHtml(printedAt)}</div><div class="summary"><div class="card">ยอดเก็บจริง<div class="value">${escapeHtml(totalAmount)}</div></div><div class="card">ยอดสุทธิตามระบบ<div class="value">${escapeHtml(netAmount)}</div></div></div><table><thead><tr><th>วันที่</th><th>ประเภทรถ</th><th>บริษัท</th><th>รายการ</th><th>ยอดสุทธิ</th><th>ยอดเก็บจริง</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.company)}</td><td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.net_amount)}</td><td>${escapeHtml(r.collected_amount)}</td></tr>`).join('')}</tbody></table></body></html>`;
+ const html=`<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>Vehicle Dashboard PDF</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#172033}h1{margin:0 0 8px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border-bottom:1px solid #ddd;padding:8px;text-align:left}.summary{display:flex;gap:12px;margin:16px 0}.card{border:1px solid #ddd;border-radius:12px;padding:12px;min-width:160px}.value{font-size:24px;font-weight:800;color:#2563eb}
+/* v14.13.3: Hide expense / remaining values inside car sub-category slide; keep them only on main category rows */
+.summary-subitem.expense-sub{grid-template-columns:1.15fr 1fr 1fr!important;}
+.summary-subitem.expense-sub .expense,
+.summary-subitem.expense-sub .remaining{display:none!important;}
+@media(max-width:780px){.summary-subitem.expense-sub{grid-template-columns:1fr 1fr!important}.summary-subitem.expense-sub .sub-category-name{grid-column:1/-1}}
+</style></head><body><h1>Vehicle Dashboard</h1><div>Export: ${escapeHtml(printedAt)}</div><div class="summary"><div class="card">ยอดเก็บจริง<div class="value">${escapeHtml(totalAmount)}</div></div><div class="card">ยอดสุทธิตามระบบ<div class="value">${escapeHtml(netAmount)}</div></div></div><table><thead><tr><th>วันที่</th><th>ประเภทรถ</th><th>บริษัท</th><th>รายการ</th><th>ยอดสุทธิ</th><th>ยอดเก็บจริง</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.company)}</td><td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.net_amount)}</td><td>${escapeHtml(r.collected_amount)}</td></tr>`).join('')}</tbody></table></body></html>`;
  const win=window.open('', '_blank');
  if(!win){alert('Browser บล็อก popup กรุณาอนุญาต popup แล้วลอง Export PDF อีกครั้ง');return}
  win.document.open();win.document.write(html);win.document.close();win.focus();setTimeout(()=>win.print(),700);

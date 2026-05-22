@@ -843,6 +843,12 @@ body.dark .flatpickr-calendar option{
   .flatpickr-day{max-width:14.285%!important;width:14.285%!important;height:38px!important;line-height:38px!important}
 }
 
+
+/* v14.13.3: Hide expense / remaining values inside car sub-category slide; keep them only on main category rows */
+.summary-subitem.expense-sub{grid-template-columns:1.15fr 1fr 1fr!important;}
+.summary-subitem.expense-sub .expense,
+.summary-subitem.expense-sub .remaining{display:none!important;}
+@media(max-width:780px){.summary-subitem.expense-sub{grid-template-columns:1fr 1fr!important}.summary-subitem.expense-sub .sub-category-name{grid-column:1/-1}}
 </style></head><body><h1>Vehicle Dashboard</h1><div>Export: ${escapeHtml(printedAt)}</div><div class="summary"><div class="card">ยอดเก็บจริง<div class="value">${escapeHtml(totalAmount)}</div></div><div class="card">ยอดสุทธิตามระบบ<div class="value">${escapeHtml(netAmount)}</div></div></div><table><thead><tr><th>วันที่</th><th>ประเภทรถ</th><th>บริษัท</th><th>รายการ</th><th>ยอดสุทธิ</th><th>ยอดเก็บจริง</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.company)}</td><td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.net_amount)}</td><td>${escapeHtml(r.collected_amount)}</td></tr>`).join('')}</tbody></table></body></html>`;
  const win=window.open('', '_blank');
  if(!win){alert('Browser บล็อก popup กรุณาอนุญาต popup แล้วลอง Export PDF อีกครั้ง');return}
