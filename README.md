@@ -1,6 +1,6 @@
-# Vehicle Dashboard v14.13 Expense Excel Integration
+# Vehicle Dashboard v14.13.1 Expense Render Hotfix
 
-## v14.13 Expense Excel Integration
+## v14.13.1 Expense Render Hotfix
 - เพิ่มการดึง “ยอดค่าใช้จ่าย” จาก Excel
 - รองรับค่าใช้จ่ายแบบสรุปท้ายชีต เช่น รถมอเตอร์ไซต์ / รถยนต์
 - Dashboard แสดง ค่าใช้จ่ายรวม และ คงเหลือสุทธิ = ยอดเก็บจริง - ค่าใช้จ่าย
@@ -26,7 +26,7 @@ Deploy on Render with existing ENV:
 - GITHUB_BRANCH
 
 
-## v14.13 Expense Excel Integration
+## v14.13.1 Expense Render Hotfix
 - Dashboard version credit, app health version, and admin version are aligned to v14.12.
 - Mobile/tablet responsive overrides included for real device layout.
 

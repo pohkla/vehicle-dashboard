@@ -61,6 +61,8 @@ function render(selected='all'){
  const motor=t.motorcycle||0,pickup=t.pickup||0,sedan=t.sedan||0,total=t.all||0;
  const net=report.amounts?.net||{};
  const collected=report.amounts?.collected||{};
+ const expense=report.amounts?.expense||{};
+ const profit=report.amounts?.profit||{};
  box('period').textContent=report.period||'📊 Dashboard ข้อมูลสะสมทั้งหมด';
  box('netTotalAmount').textContent=money(collected.total)+' บาท';
  box('collectedTotalAmount').textContent=money(net.total)+' บาท';
