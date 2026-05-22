@@ -21,7 +21,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-APP_VERSION = "v14.13.1 Expense Render Hotfix"
+APP_VERSION = "v14.13.2 Expense Excel Summary Parser"
 app = FastAPI(title=f"Vehicle Dashboard {APP_VERSION}")
 
 
@@ -346,68 +346,65 @@ def to_money(value: Any) -> float:
 
 
 
+def parse_expense_summaries_from_sheet(ws) -> list[dict[str, Any]]:
+    """Read the expense summary area on the right side of the Excel sheet.
 
-def normalize_expense_category(value: Any) -> str:
-    text = str(value or "").strip().replace(" ", "")
-    if not text:
-        return ""
-    if "มอเตอร์" in text or "จักรยานยนต์" in text:
-        return "motorcycle"
-    if "กระบะ" in text:
-        return "pickup"
-    if "เก๋ง" in text:
-        return "sedan"
-    if "รถยนต์" in text or "รถยน" in text:
-        return "car"
-    return ""
+    Supported layouts seen in the user's files:
+    - a heading cell containing "ยอดค่าใช้จ่าย"
+    - rows below with labels like "รถมอเตอร์ไซค์" and "รถยนต์"
+    - amount can be in งวด 1, งวด 2, or any numeric cell to the right of the label
 
+    We intentionally keep this parser separate from the main A-G table parser,
+    because the old import flow skipped the right-side summary area by design.
+    """
+    summaries: list[dict[str, Any]] = []
+    max_row = ws.max_row or 0
+    max_col = ws.max_column or 0
 
-def find_optional_header(header_map: dict[str, int], headers_seen: list[str], keywords: list[str]) -> int | None:
-    for idx, name in enumerate(headers_seen, start=1):
-        compact = str(name or "").replace(" ", "")
-        if all(k in compact for k in keywords):
-            return idx
-    return None
+    heading_cells: list[tuple[int, int]] = []
+    for row in range(1, max_row + 1):
+        for col in range(1, max_col + 1):
+            text = str(ws.cell(row, col).value or "").strip().replace(" ", "")
+            if "ยอดค่าใช้จ่าย" in text:
+                heading_cells.append((row, col))
 
+    def row_amount(row_idx: int, start_col: int) -> float:
+        total = 0.0
+        # Expense tables are usually 3-5 columns wide, but keep a wider safe window.
+        for col in range(start_col + 1, min(max_col, start_col + 8) + 1):
+            val = ws.cell(row_idx, col).value
+            # Ignore count columns and text/unit cells by using to_money; blank/text => 0.
+            total += to_money(val)
+        return round(total, 2)
 
-def parse_expense_rows_from_sheet(ws: Any, default_iso_date: str = "") -> list[dict[str, Any]]:
-    """Scan summary expense blocks such as 'ยอดค่าใช้จ่าย' from the Excel sheet."""
-    expense_records: list[dict[str, Any]] = []
-    marker_rows: list[int] = []
-    max_scan_col = min(ws.max_column, 14)
-    for row_idx in range(1, ws.max_row + 1):
-        row_text = " ".join(str(ws.cell(row_idx, col).value or "") for col in range(1, max_scan_col + 1))
-        compact = row_text.replace(" ", "")
-        if "ยอดค่าใช้จ่าย" in compact or "ค่าใช้จ่าย" in compact and "ยอด" in compact:
-            marker_rows.append(row_idx)
-
-    seen: set[tuple[str, float, str]] = set()
-    for marker_row in marker_rows:
-        for row_idx in range(marker_row + 1, min(ws.max_row, marker_row + 18) + 1):
-            values = [ws.cell(row_idx, col).value for col in range(1, max_scan_col + 1)]
-            category = ""
-            for v in values:
-                category = normalize_expense_category(v)
-                if category:
+    for head_row, head_col in heading_cells:
+        motorcycle_amount = 0.0
+        car_amount = 0.0
+        # Scan rows below the heading and a few columns around the heading.
+        for row in range(head_row + 1, min(max_row, head_row + 12) + 1):
+            for col in range(max(1, head_col - 2), min(max_col, head_col + 5) + 1):
+                label = str(ws.cell(row, col).value or "").strip().replace(" ", "")
+                if not label:
+                    continue
+                amount = row_amount(row, col)
+                if amount <= 0:
+                    continue
+                if "มอเตอร์" in label or "จักรยานยนต์" in label:
+                    motorcycle_amount += amount
                     break
-            if not category:
-                continue
-            amounts = [to_money(v) for v in values if to_money(v) > 0]
-            if not amounts:
-                continue
-            amount = amounts[0]
-            key = (category, amount, ws.title)
-            if key in seen:
-                continue
-            seen.add(key)
-            expense_records.append({
-                "iso_date": default_iso_date or "",
-                "category": category,
-                "amount": round(amount, 2),
+                if "รถยนต์" in label or "รายยนต์" in label:
+                    car_amount += amount
+                    break
+
+        if motorcycle_amount or car_amount:
+            summaries.append({
                 "source_sheet": ws.title,
-                "source": "excel_summary",
+                "motorcycle_amount": round(motorcycle_amount, 2),
+                "car_amount": round(car_amount, 2),
+                "total_amount": round(motorcycle_amount + car_amount, 2),
             })
-    return expense_records
+
+    return summaries
 
 def parse_excel_upload(content: bytes) -> dict[str, Any]:
     try:
@@ -418,10 +415,12 @@ def parse_excel_upload(content: bytes) -> dict[str, Any]:
     wb = load_workbook(BytesIO(content), data_only=True)
     required = ["วันที่", "ประเภทรถ", "บริษัท", "รหัส", "ยอดสุทธิ", "ยอดเก็บจริง"]
     records: list[dict[str, Any]] = []
-    expense_records: list[dict[str, Any]] = []
     sheet_stats: list[dict[str, Any]] = []
+    expense_summaries: list[dict[str, Any]] = []
     now = datetime.utcnow().isoformat()
     for ws in wb.worksheets:
+        sheet_expenses = parse_expense_summaries_from_sheet(ws)
+        expense_summaries.extend(sheet_expenses)
         found_header_row = None
         header_map: dict[str, int] = {}
         headers_seen: list[str] = []
@@ -441,7 +440,6 @@ def parse_excel_upload(content: bytes) -> dict[str, Any]:
         missing = [h for h in required if h not in header_map]
         if missing:
             raise HTTPException(status_code=400, detail=f"ชีต {ws.title} ขาด header: {', '.join(missing)}")
-        expense_col = find_optional_header(header_map, headers_seen, ["ค่าใช้จ่าย"])
         current_date_text = ""
         current_iso_date = ""
         start_count = len(records)
@@ -468,26 +466,19 @@ def parse_excel_upload(content: bytes) -> dict[str, Any]:
                 "item": str(code_raw).strip(),
                 "net_amount": to_money(ws.cell(row_idx, header_map["ยอดสุทธิ"]).value),
                 "collected_amount": to_money(ws.cell(row_idx, header_map["ยอดเก็บจริง"]).value),
-                "expense_amount": to_money(ws.cell(row_idx, expense_col).value) if expense_col else 0.0,
                 "import_type": "excel",
                 "source_sheet": ws.title,
                 "created_at": now,
             })
-        sheet_rows = records[start_count:]
-        sheet_dates = sorted({r.get("iso_date", "") for r in sheet_rows if r.get("iso_date")})
-        default_expense_date = sheet_dates[0] if len(sheet_dates) == 1 else ""
-        parsed_expenses = parse_expense_rows_from_sheet(ws, default_expense_date)
-        expense_records.extend(parsed_expenses)
-        sheet_stats.append({"sheet": ws.title, "status": "parsed", "header_row": found_header_row, "headers": headers_seen, "rows": len(records) - start_count, "expense_rows": len(parsed_expenses)})
+        sheet_stats.append({"sheet": ws.title, "status": "parsed", "header_row": found_header_row, "headers": headers_seen, "rows": len(records) - start_count, "expense_summaries": sheet_expenses})
     if not records:
         raise HTTPException(status_code=400, detail="อ่าน Excel ไม่สำเร็จ: ไม่พบรายการข้อมูล")
-    return {"records": records, "expense_records": expense_records, "sheet_stats": sheet_stats, "parsed_rows": len(records), "parsed_expense_rows": len(expense_records)}
+    return {"records": records, "sheet_stats": sheet_stats, "parsed_rows": len(records), "expense_summaries": expense_summaries}
 
 
 def save_excel_replace_all(file_content: bytes, filename: str = "") -> dict[str, Any]:
     parsed = parse_excel_upload(file_content)
     records = parsed["records"]
-    expense_records = parsed.get("expense_records", [])
     now = datetime.utcnow().isoformat()
     imported_dates = sorted({row["iso_date"] for row in records if row.get("iso_date")})
     store, sha = read_github_store()
@@ -496,21 +487,19 @@ def save_excel_replace_all(file_content: bytes, filename: str = "") -> dict[str,
     car_net = sum(float(r.get("net_amount", 0) or 0) for r in records if r.get("vehicle_type") in ("pickup", "sedan"))
     motor_net = sum(float(r.get("net_amount", 0) or 0) for r in records if r.get("vehicle_type") == "motorcycle")
     weekly_summaries = [{"period_key": f"Excel Import {filename or now}", "car_amount": round(car_net, 2), "motorcycle_amount": round(motor_net, 2), "total_amount": round(car_net + motor_net, 2), "updated_at": now}]
-    expense_summary = {"motorcycle": 0.0, "pickup": 0.0, "sedan": 0.0, "car": 0.0, "total": 0.0}
-    for er in expense_records:
-        cat = er.get("category", "")
-        amount = float(er.get("amount", 0) or 0)
-        if cat in expense_summary:
-            expense_summary[cat] += amount
-            if cat in ("pickup", "sedan"):
-                expense_summary["car"] += amount
-            expense_summary["total"] += amount
-    expense_summary = {k: round(v, 2) for k, v in expense_summary.items()}
-    new_store = {"version": 3, "app_version": APP_VERSION, "import_type": "excel", "updated_at": now, "daily_records": records, "weekly_summaries": weekly_summaries, "expense_records": expense_records, "expense_summary": expense_summary, "excel_debug": {"filename": filename, "sheet_stats": parsed["sheet_stats"], "parsed_rows": parsed["parsed_rows"], "parsed_expense_rows": parsed.get("parsed_expense_rows", 0), "required_money_fields_ok": all("net_amount" in r and "collected_amount" in r for r in records)}}
+    expense_summaries = parsed.get("expense_summaries", [])
+    # Add each sheet date range for later dashboard filtering/allocation.
+    for ex in expense_summaries:
+        sheet_rows = [r for r in records if r.get("source_sheet") == ex.get("source_sheet") and r.get("iso_date")]
+        dates = sorted({r.get("iso_date") for r in sheet_rows if r.get("iso_date")})
+        ex["date_start"] = dates[0] if dates else None
+        ex["date_end"] = dates[-1] if dates else None
+        ex["updated_at"] = now
+    new_store = {"version": 3, "app_version": APP_VERSION, "import_type": "excel", "updated_at": now, "daily_records": records, "weekly_summaries": weekly_summaries, "expense_summaries": expense_summaries, "excel_debug": {"filename": filename, "sheet_stats": parsed["sheet_stats"], "parsed_rows": parsed["parsed_rows"], "expense_summaries": expense_summaries, "required_money_fields_ok": all("net_amount" in r and "collected_amount" in r for r in records)}}
     write_github_store(new_store, sha, f"excel import vehicle dashboard data {now}")
     clear_dashboard_cache()
     verify_store, verify_sha = read_github_store()
-    return {"report_id": 0, "import_type": "excel", "version": APP_VERSION, "imported_dates": len(imported_dates), "deleted_records": int(old_record_count or 0), "deleted_summaries": int(old_summary_count or 0), "inserted": len(records), "replaced_summaries": len(weekly_summaries), "parsed_rows": parsed["parsed_rows"], "parsed_expense_rows": parsed.get("parsed_expense_rows", 0), "expense_summary": expense_summary, "sheet_stats": parsed["sheet_stats"], "github_write_verified": len(verify_store.get("daily_records", [])) == len(records), "sha_exists_after_write": bool(verify_sha)}
+    return {"report_id": 0, "import_type": "excel", "version": APP_VERSION, "imported_dates": len(imported_dates), "deleted_records": int(old_record_count or 0), "deleted_summaries": int(old_summary_count or 0), "inserted": len(records), "replaced_summaries": len(weekly_summaries), "parsed_rows": parsed["parsed_rows"], "sheet_stats": parsed["sheet_stats"], "github_write_verified": len(verify_store.get("daily_records", [])) == len(records), "sha_exists_after_write": bool(verify_sha)}
 
 
 def get_money_totals_from_weekly_summaries(store: dict[str, Any]) -> dict[str, float]:
@@ -522,19 +511,69 @@ def get_money_totals_from_weekly_summaries(store: dict[str, Any]) -> dict[str, f
     return {
         "net": {"pickup": round(car, 2), "sedan": 0, "car": round(car, 2), "motorcycle": round(motorcycle, 2), "total": round(total, 2)},
         "collected": {"pickup": 0, "sedan": 0, "car": 0, "motorcycle": 0, "total": 0},
-        "expense": {"pickup": 0, "sedan": 0, "car": 0, "motorcycle": 0, "total": 0},
-        "profit": {"pickup": 0, "sedan": 0, "car": 0, "motorcycle": 0, "total": 0},
         "legacy": True,
     }
 
 
-def get_money_totals_from_records(rows: list[dict[str, Any]], store: dict[str, Any], use_legacy_fallback: bool = False, start: str | None = None, end: str | None = None, q: str | None = None) -> dict[str, Any]:
+def get_expense_totals_from_records(rows: list[dict[str, Any]], store: dict[str, Any]) -> dict[str, float]:
+    """Allocate Excel right-side expense summaries into the current dashboard filter.
+
+    Expense summaries are sheet-level in the uploaded Excel. If the dashboard filter
+    shows only part of a sheet, expenses are proportionally allocated by vehicle count.
+    Motorcycle expense maps directly to motorcycle. Car expense is split into pickup
+    and sedan by their counts in the same sheet.
+    """
+    expense = {"pickup": 0.0, "sedan": 0.0, "car": 0.0, "motorcycle": 0.0, "total": 0.0}
+    expense_summaries = store.get("expense_summaries", []) or []
+    if not expense_summaries:
+        return {k: 0.0 for k in expense}
+
+    all_rows = store.get("daily_records", []) or []
+    filtered_by_sheet: dict[str, list[dict[str, Any]]] = {}
+    all_by_sheet: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        filtered_by_sheet.setdefault(str(row.get("source_sheet") or ""), []).append(row)
+    for row in all_rows:
+        all_by_sheet.setdefault(str(row.get("source_sheet") or ""), []).append(row)
+
+    def count_type(source: list[dict[str, Any]], types: tuple[str, ...]) -> int:
+        return sum(1 for r in source if r.get("vehicle_type") in types)
+
+    for summary in expense_summaries:
+        sheet = str(summary.get("source_sheet") or "")
+        if not sheet:
+            continue
+        sheet_all = all_by_sheet.get(sheet, [])
+        sheet_filtered = filtered_by_sheet.get(sheet, [])
+        if not sheet_all or not sheet_filtered:
+            continue
+
+        all_motor = count_type(sheet_all, ("motorcycle",))
+        fil_motor = count_type(sheet_filtered, ("motorcycle",))
+        all_pickup = count_type(sheet_all, ("pickup",))
+        all_sedan = count_type(sheet_all, ("sedan",))
+        fil_pickup = count_type(sheet_filtered, ("pickup",))
+        fil_sedan = count_type(sheet_filtered, ("sedan",))
+        all_car = all_pickup + all_sedan
+
+        motor_amount = float(summary.get("motorcycle_amount", 0) or 0)
+        car_amount = float(summary.get("car_amount", 0) or 0)
+
+        if all_motor:
+            expense["motorcycle"] += motor_amount * (fil_motor / all_motor)
+        if all_car:
+            expense["pickup"] += car_amount * (fil_pickup / all_car)
+            expense["sedan"] += car_amount * (fil_sedan / all_car)
+
+    expense["car"] = expense["pickup"] + expense["sedan"]
+    expense["total"] = expense["car"] + expense["motorcycle"]
+    return {k: round(v, 2) for k, v in expense.items()}
+
+
+def get_money_totals_from_records(rows: list[dict[str, Any]], store: dict[str, Any], use_legacy_fallback: bool = False) -> dict[str, Any]:
     net = {"pickup": 0.0, "sedan": 0.0, "car": 0.0, "motorcycle": 0.0, "total": 0.0}
     collected = {"pickup": 0.0, "sedan": 0.0, "car": 0.0, "motorcycle": 0.0, "total": 0.0}
-    expense = {"pickup": 0.0, "sedan": 0.0, "car": 0.0, "motorcycle": 0.0, "total": 0.0}
     has_money_fields = False
-    has_row_expense = False
-    selected_dates = {r.get("iso_date", "") for r in rows if r.get("iso_date")}
 
     for row in rows:
         vehicle_type = row.get("vehicle_type")
@@ -546,50 +585,29 @@ def get_money_totals_from_records(rows: list[dict[str, Any]], store: dict[str, A
             has_money_fields = True
         net_amount = float(row.get("net_amount", 0) or 0)
         collected_amount = float(row.get("collected_amount", 0) or 0)
-        expense_amount = float(row.get("expense_amount", 0) or 0)
-        if expense_amount:
-            has_row_expense = True
 
         net[bucket] += net_amount
         collected[bucket] += collected_amount
-        expense[bucket] += expense_amount
         if bucket in ("pickup", "sedan", "car"):
             net["car"] += net_amount
             collected["car"] += collected_amount
-            if bucket in ("pickup", "sedan"):
-                expense["car"] += expense_amount
         net["total"] += net_amount
         collected["total"] += collected_amount
-        expense["total"] += expense_amount
-
-    if not has_row_expense:
-        for er in store.get("expense_records", []) or []:
-            er_date = er.get("iso_date", "")
-            # Summary expense rows without a date are only safe for full/no-search view.
-            if er_date:
-                if er_date not in selected_dates:
-                    continue
-            elif start or end or q:
-                continue
-            cat = er.get("category", "")
-            amount = float(er.get("amount", 0) or 0)
-            if cat not in expense:
-                continue
-            expense[cat] += amount
-            if cat in ("pickup", "sedan"):
-                expense["car"] += amount
-            expense["total"] += amount
 
     if not has_money_fields and use_legacy_fallback:
-        return get_money_totals_from_weekly_summaries(store)
+        base = get_money_totals_from_weekly_summaries(store)
+        base["expense"] = {"pickup": 0, "sedan": 0, "car": 0, "motorcycle": 0, "total": 0}
+        base["remaining"] = base.get("collected", {}).copy()
+        return base
 
-    profit = {k: round((collected.get(k, 0) or 0) - (expense.get(k, 0) or 0), 2) for k in collected.keys()}
+    expense = get_expense_totals_from_records(rows, store)
+    remaining = {k: round((collected.get(k, 0) or 0) - (expense.get(k, 0) or 0), 2) for k in collected}
 
     return {
         "net": {k: round(v, 2) for k, v in net.items()},
         "collected": {k: round(v, 2) for k, v in collected.items()},
-        "expense": {k: round(v, 2) for k, v in expense.items()},
-        "profit": profit,
+        "expense": expense,
+        "remaining": remaining,
         "legacy": False,
     }
 
@@ -627,7 +645,6 @@ def get_dashboard_data(start: str | None = None, end: str | None = None, q: str 
             "text": row.get("item", ""),
             "net_amount": float(row.get("net_amount", 0) or 0),
             "collected_amount": float(row.get("collected_amount", 0) or 0),
-            "expense_amount": float(row.get("expense_amount", 0) or 0),
             "vehicle_type": vehicle_type,
             "vehicle_title": row.get("vehicle_title", ""),
             "company": company,
@@ -647,7 +664,7 @@ def get_dashboard_data(start: str | None = None, end: str | None = None, q: str 
     motorcycle = sum(1 for r in filtered_rows if r.get("vehicle_type") == "motorcycle")
     pickup = sum(1 for r in filtered_rows if r.get("vehicle_type") == "pickup")
     sedan = sum(1 for r in filtered_rows if r.get("vehicle_type") == "sedan")
-    money_totals = get_money_totals_from_records(filtered_rows, store, use_legacy_fallback=(not start and not end and not q_lower), start=start, end=end, q=q_lower)
+    money_totals = get_money_totals_from_records(filtered_rows, store, use_legacy_fallback=(not start and not end and not q_lower))
     iso_dates = [r.get("iso_date", "") for r in all_rows if r.get("iso_date")]
     filtered_iso_dates = [r.get("iso_date", "") for r in filtered_rows if r.get("iso_date")]
 
@@ -674,7 +691,7 @@ ADMIN_HTML = """
 <!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Vehicle Dashboard Admin</title><link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--blue:#2563eb;--cyan:#14b8a6;--line:#e5e7eb;--shadow:0 16px 40px rgba(15,23,42,.08)}*{box-sizing:border-box}body{margin:0;font-family:Prompt,sans-serif;background:radial-gradient(circle at top left,#dbeafe 0,transparent 28%),var(--bg);color:var(--text)}.wrap{width:min(980px,94vw);margin:auto;padding:32px 0}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#14b8a6);color:#fff;border-radius:28px;padding:28px;margin-bottom:18px;box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:34px}.hero p{margin:0;opacity:.9}.version{display:inline-flex;margin-top:14px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.16);font-weight:700}.nav{display:flex;gap:10px;margin-bottom:16px}.nav a{padding:10px 14px;border-radius:14px;background:#fff;color:#1d4ed8;text-decoration:none;font-weight:700;border:1px solid var(--line)}.card{background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-radius:28px;padding:26px;box-shadow:var(--shadow);border:1px solid rgba(229,231,235,.9)}.tabs{display:flex;gap:10px;margin:0 0 16px}.tab-btn{border:1px solid var(--line);background:#fff;color:#1d4ed8;border-radius:16px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:800;cursor:pointer}.tab-btn.active{background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;border-color:transparent;box-shadow:0 12px 22px rgba(37,99,235,.18)}.tab-panel{display:none}.tab-panel.active{display:block}.hint{padding:12px 14px;background:#eff6ff;color:#1d4ed8;border-radius:14px;margin:12px 0;font-size:14px}.danger{background:#fff7ed;color:#9a3412}.dropzone{border:2px dashed #bfdbfe;background:#f8fbff;border-radius:22px;padding:28px;text-align:center;transition:.18s;cursor:pointer;margin:14px 0}.dropzone:hover,.dropzone.dragover{border-color:#2563eb;background:#eff6ff;transform:translateY(-1px)}.drop-title{font-size:20px;font-weight:800;color:#1d4ed8}.drop-sub{color:#667085;margin-top:6px;font-size:14px}.file-name{margin-top:10px;color:#172033;font-weight:800}input[type=file]{display:none}textarea{width:100%;height:360px;border:1px solid var(--line);border-radius:18px;padding:14px;font-family:Prompt,sans-serif;font-size:14px;line-height:1.65;box-shadow:inset 0 1px 2px rgba(15,23,42,.04)}.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.btn{border:0;border-radius:14px;padding:12px 18px;font-family:Prompt,sans-serif;font-weight:800;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 12px 22px rgba(37,99,235,.18);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn:disabled{opacity:.65;cursor:not-allowed;transform:none}.btn2{background:#eff6ff;color:#1d4ed8;box-shadow:none;text-decoration:none}.status{margin-top:12px;color:var(--muted);white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);padding:14px;border-radius:14px}.status.loading{color:#1d4ed8;font-weight:700}.status.loading:before{content:"";display:inline-block;width:16px;height:16px;margin-right:8px;border-radius:999px;border:3px solid #dbeafe;border-top-color:#2563eb;vertical-align:-3px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(max-width:680px){.tabs{display:grid}.hero h1{font-size:28px}.dropzone{padding:22px 14px}}
 
 .compact-range-toolbar .date-filter-card,.compact-range-toolbar .date-input-wrap{display:none!important}
-</style></head><body><div class="wrap"><div class="nav"><a href="/admin">Admin</a><a href="/dashboard" target="_blank">Dashboard Only</a><a href="/api/health" target="_blank">Health</a></div><div class="hero"><h1>Vehicle Dashboard Admin</h1><p>นำเข้าข้อมูลแบบ Replace All: ล้างข้อมูลเดิมทั้งหมด แล้วใช้เฉพาะข้อมูลชุดล่าสุด</p><div class="version">Version: __APP_VERSION__</div></div><div class="card"><div class="tabs"><button class="tab-btn active" data-tab="excelPanel" type="button">1) Import Excel</button><button class="tab-btn" data-tab="textPanel" type="button">2) Import Text</button></div><section class="tab-panel active" id="excelPanel"><h2>Import Excel</h2><div class="hint">รองรับไฟล์ .xlsx / .xls ที่มี header: วันที่, ประเภทรถ, บริษัท, รหัส, ยอดสุทธิ, ยอดเก็บจริง และรองรับส่วน “ยอดค่าใช้จ่าย” ใน Excel</div><input type="file" id="excelFile" accept=".xlsx,.xls"><div class="dropzone" id="excelDrop"><div class="drop-title">ลากวางไฟล์ Excel ที่นี่</div><div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์จากเครื่อง</div><div class="file-name" id="excelName">ยังไม่ได้เลือกไฟล์</div></div><div class="row"><button class="btn" id="excelBtn" type="button">Upload Excel และบันทึก GitHub</button><a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard</a></div><div class="status" id="excelStatus">พร้อม Import Excel</div></section><section class="tab-panel" id="textPanel"><h2>Import Text</h2><div class="hint danger">Text Import ใช้ flow เดิมจาก v6.2 และไม่ต้องกรอก Admin Token</div><input type="file" id="textFile" accept=".txt,text/plain"><div class="dropzone" id="textDrop"><div class="drop-title">ลากวางไฟล์ Text ที่นี่</div><div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์ .txt จากเครื่อง / หรือวางข้อความด้านล่าง</div><div class="file-name" id="textName">ยังไม่ได้เลือกไฟล์</div></div><textarea id="raw_text" placeholder="วางข้อมูลรายสัปดาห์หลายชุดต่อกันได้ตรงนี้..."></textarea><div class="row"><button class="btn" id="textBtn" type="button">Import Text และบันทึก GitHub</button><a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard</a></div><div class="status" id="textStatus">พร้อม Import Text</div></section></div></div><script>
+</style></head><body><div class="wrap"><div class="nav"><a href="/admin">Admin</a><a href="/dashboard" target="_blank">Dashboard Only</a><a href="/api/health" target="_blank">Health</a></div><div class="hero"><h1>Vehicle Dashboard Admin</h1><p>นำเข้าข้อมูลแบบ Replace All: ล้างข้อมูลเดิมทั้งหมด แล้วใช้เฉพาะข้อมูลชุดล่าสุด</p><div class="version">Version: __APP_VERSION__</div></div><div class="card"><div class="tabs"><button class="tab-btn active" data-tab="excelPanel" type="button">1) Import Excel</button><button class="tab-btn" data-tab="textPanel" type="button">2) Import Text</button></div><section class="tab-panel active" id="excelPanel"><h2>Import Excel</h2><div class="hint">รองรับไฟล์ .xlsx / .xls ที่มี header: วันที่, ประเภทรถ, บริษัท, รหัส, ยอดสุทธิ, ยอดเก็บจริง</div><input type="file" id="excelFile" accept=".xlsx,.xls"><div class="dropzone" id="excelDrop"><div class="drop-title">ลากวางไฟล์ Excel ที่นี่</div><div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์จากเครื่อง</div><div class="file-name" id="excelName">ยังไม่ได้เลือกไฟล์</div></div><div class="row"><button class="btn" id="excelBtn" type="button">Upload Excel และบันทึก GitHub</button><a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard</a></div><div class="status" id="excelStatus">พร้อม Import Excel</div></section><section class="tab-panel" id="textPanel"><h2>Import Text</h2><div class="hint danger">Text Import ใช้ flow เดิมจาก v6.2 และไม่ต้องกรอก Admin Token</div><input type="file" id="textFile" accept=".txt,text/plain"><div class="dropzone" id="textDrop"><div class="drop-title">ลากวางไฟล์ Text ที่นี่</div><div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์ .txt จากเครื่อง / หรือวางข้อความด้านล่าง</div><div class="file-name" id="textName">ยังไม่ได้เลือกไฟล์</div></div><textarea id="raw_text" placeholder="วางข้อมูลรายสัปดาห์หลายชุดต่อกันได้ตรงนี้..."></textarea><div class="row"><button class="btn" id="textBtn" type="button">Import Text และบันทึก GitHub</button><a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard</a></div><div class="status" id="textStatus">พร้อม Import Text</div></section></div></div><script>
 const $ = (id) => document.getElementById(id);
 const excelFile = $('excelFile');
 const textFile = $('textFile');
