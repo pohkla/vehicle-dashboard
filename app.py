@@ -21,7 +21,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-APP_VERSION = "v14.13.4 Hide Sub Expense Final"
+APP_VERSION = "v14.13.5 Align Summary Columns"
 app = FastAPI(title=f"Vehicle Dashboard {APP_VERSION}")
 
 
@@ -701,6 +701,27 @@ ADMIN_HTML = """
 .summary-slide-row #sedanExpenseAmount,
 .summary-slide-row #sedanRemainingAmount{display:none!important;visibility:hidden!important;width:0!important;height:0!important;overflow:hidden!important;}
 @media(max-width:780px){.summary-slide-row .summary-subitem.expense-sub{grid-template-columns:1fr 1fr!important}.summary-slide-row .summary-subitem.expense-sub .sub-category-name{grid-column:1/-1}}
+
+/* v14.13.5: Align sub-category rows to summary table columns */
+@media (min-width:781px){
+  .summary-table.expense-enabled{table-layout:fixed!important;width:100%!important;}
+  .summary-table.expense-enabled th:nth-child(1),.summary-table.expense-enabled td:nth-child(1){width:40%!important;text-align:left!important;}
+  .summary-table.expense-enabled th:nth-child(2),.summary-table.expense-enabled td:nth-child(2),
+  .summary-table.expense-enabled th:nth-child(3),.summary-table.expense-enabled td:nth-child(3),
+  .summary-table.expense-enabled th:nth-child(4),.summary-table.expense-enabled td:nth-child(4),
+  .summary-table.expense-enabled th:nth-child(5),.summary-table.expense-enabled td:nth-child(5){width:15%!important;text-align:right!important;}
+  .summary-table.expense-enabled .summary-slide-row td{width:100%!important;padding:10px 0 12px!important;}
+  .summary-slide-row .summary-subitem.expense-sub{display:grid!important;grid-template-columns:40fr 15fr 15fr 15fr 15fr!important;column-gap:0!important;align-items:center!important;width:100%!important;box-sizing:border-box!important;padding:14px 12px!important;}
+  .summary-slide-row .summary-subitem.expense-sub .sub-category-name{grid-column:1!important;text-align:left!important;justify-self:start!important;}
+  .summary-slide-row .summary-subitem.expense-sub .net{grid-column:2!important;text-align:right!important;justify-self:end!important;}
+  .summary-slide-row .summary-subitem.expense-sub .collected{grid-column:3!important;text-align:right!important;justify-self:end!important;}
+}
+@media (max-width:780px){
+  .summary-slide-row .summary-subitem.expense-sub{grid-template-columns:1fr 1fr!important;}
+  .summary-slide-row .summary-subitem.expense-sub .sub-category-name{grid-column:1/-1!important;}
+  .summary-slide-row .summary-subitem.expense-sub .net,.summary-slide-row .summary-subitem.expense-sub .collected{text-align:left!important;justify-self:start!important;}
+}
+
 </style></head><body><div class="wrap"><div class="nav"><a href="/admin">Admin</a><a href="/dashboard" target="_blank">Dashboard Only</a><a href="/api/health" target="_blank">Health</a></div><div class="hero"><h1>Vehicle Dashboard Admin</h1><p>นำเข้าข้อมูลแบบ Replace All: ล้างข้อมูลเดิมทั้งหมด แล้วใช้เฉพาะข้อมูลชุดล่าสุด</p><div class="version">Version: __APP_VERSION__</div></div><div class="card"><div class="tabs"><button class="tab-btn active" data-tab="excelPanel" type="button">1) Import Excel</button><button class="tab-btn" data-tab="textPanel" type="button">2) Import Text</button></div><section class="tab-panel active" id="excelPanel"><h2>Import Excel</h2><div class="hint">รองรับไฟล์ .xlsx / .xls ที่มี header: วันที่, ประเภทรถ, บริษัท, รหัส, ยอดสุทธิ, ยอดเก็บจริง</div><input type="file" id="excelFile" accept=".xlsx,.xls"><div class="dropzone" id="excelDrop"><div class="drop-title">ลากวางไฟล์ Excel ที่นี่</div><div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์จากเครื่อง</div><div class="file-name" id="excelName">ยังไม่ได้เลือกไฟล์</div></div><div class="row"><button class="btn" id="excelBtn" type="button">Upload Excel และบันทึก GitHub</button><a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard</a></div><div class="status" id="excelStatus">พร้อม Import Excel</div></section><section class="tab-panel" id="textPanel"><h2>Import Text</h2><div class="hint danger">Text Import ใช้ flow เดิมจาก v6.2 และไม่ต้องกรอก Admin Token</div><input type="file" id="textFile" accept=".txt,text/plain"><div class="dropzone" id="textDrop"><div class="drop-title">ลากวางไฟล์ Text ที่นี่</div><div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์ .txt จากเครื่อง / หรือวางข้อความด้านล่าง</div><div class="file-name" id="textName">ยังไม่ได้เลือกไฟล์</div></div><textarea id="raw_text" placeholder="วางข้อมูลรายสัปดาห์หลายชุดต่อกันได้ตรงนี้..."></textarea><div class="row"><button class="btn" id="textBtn" type="button">Import Text และบันทึก GitHub</button><a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard</a></div><div class="status" id="textStatus">พร้อม Import Text</div></section></div></div><script>
 const $ = (id) => document.getElementById(id);
 const excelFile = $('excelFile');
