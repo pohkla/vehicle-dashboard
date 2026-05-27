@@ -689,6 +689,168 @@ body.dark .loading-box{background:#111b2e!important;color:#f8fafc!important;bord
   body.dark .day-head{padding:13px 12px!important;}
 }
 
+
+/* v14.17 Dashboard Light UI / Proportion Balance Fix */
+:root{
+  --bg:#eef4fb;
+  --card:#ffffff;
+  --text:#111827;
+  --muted:#536174;
+  --line:#d8e2ef;
+  --shadow:0 14px 38px rgba(15,23,42,.10);
+  --radius:20px;
+}
+body:not(.dark){
+  background:
+    radial-gradient(circle at 5% 0%,rgba(37,99,235,.12),transparent 30%),
+    radial-gradient(circle at 95% 0%,rgba(20,184,166,.13),transparent 28%),
+    linear-gradient(180deg,#f6f9fe 0%,#edf3f9 58%,#e9eff6 100%)!important;
+  color:#111827!important;
+}
+body:not(.dark) .page{
+  width:min(1480px,96vw)!important;
+  padding:20px 0 48px!important;
+}
+body:not(.dark) .compact-range-toolbar{
+  border-radius:18px!important;
+  padding:12px 16px!important;
+  margin-bottom:16px!important;
+  background:rgba(255,255,255,.88)!important;
+  border:1px solid rgba(203,213,225,.72)!important;
+  box-shadow:0 10px 30px rgba(15,23,42,.07)!important;
+}
+body:not(.dark) .compact-range-title h2{
+  font-size:20px!important;
+  letter-spacing:-.02em!important;
+}
+body:not(.dark) .compact-range-title h2:before{
+  width:30px!important;height:30px!important;border-radius:10px!important;
+}
+body:not(.dark) .compact-range-title .date-helper{font-size:12px!important;color:#64748b!important;}
+body:not(.dark) .range-main{
+  min-width:300px!important;height:42px!important;
+  background:#fff!important;border:1px solid #dbeafe!important;
+  box-shadow:none!important;color:#0f172a!important;
+}
+body:not(.dark) .quick-actions{
+  height:42px!important;background:#edf2f7!important;border:1px solid #dbe3ee!important;
+  box-shadow:none!important;padding:4px!important;
+}
+body:not(.dark) .quick-btn{height:34px!important;font-size:12px!important;padding:0 12px!important;color:#1d4ed8!important;}
+body:not(.dark) .quick-btn:hover,body:not(.dark) .quick-btn.active{background:#fff!important;box-shadow:0 5px 14px rgba(15,23,42,.08)!important;}
+body:not(.dark) .hero{
+  grid-template-columns:minmax(0,1.05fr) minmax(560px,.95fr)!important;
+  gap:16px!important;margin-bottom:16px!important;
+}
+body:not(.dark) .hybrid-card.primary,body:not(.dark) .total-card,
+body:not(.dark) .kpi,body:not(.dark) .toolbar.daily-toolbar,
+body:not(.dark) .day-card{
+  background:#fff!important;
+  border:1px solid rgba(203,213,225,.72)!important;
+  box-shadow:0 12px 32px rgba(15,23,42,.08)!important;
+  backdrop-filter:none!important;
+}
+body:not(.dark) .hybrid-card.primary,body:not(.dark) .total-card{
+  border-radius:20px!important;
+  min-height:320px!important;
+  padding:22px!important;
+}
+body:not(.dark) .hybrid-card.primary{
+  background:linear-gradient(145deg,#ffffff 0%,#f7fbff 62%,#eefdf8 100%)!important;
+}
+body:not(.dark) .period-pill{
+  margin-bottom:12px!important;padding:7px 12px!important;border-radius:999px!important;
+  background:#eef6ff!important;color:#1d4ed8!important;border:1px solid #bfdbfe!important;
+  font-size:13px!important;box-shadow:none!important;
+}
+body:not(.dark) .hybrid-card.primary h2{font-size:24px!important;margin-bottom:6px!important;color:#111827!important;}
+body:not(.dark) .hybrid-total{font-size:40px!important;color:#2563eb!important;}
+body:not(.dark) .label,body:not(.dark) .hybrid-label{color:#64748b!important;}
+body:not(.dark) .breakdown-list{gap:10px!important;}
+body:not(.dark) .breakdown-row{
+  padding:11px 12px!important;border-radius:14px!important;background:#f8fafc!important;border:1px solid #e2e8f0!important;
+  box-shadow:none!important;
+}
+body:not(.dark) .bar-track,body:not(.dark) .company-progress{background:#e6edf5!important;height:7px!important;}
+body:not(.dark) .total-card{overflow:hidden!important;}
+body:not(.dark) .total-card .amount{font-size:38px!important;line-height:1.1!important;margin:6px 0 12px!important;}
+body:not(.dark) #collectedTotalAmount{font-size:32px!important;}
+body:not(.dark) .expense-mini-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;margin:12px 0 14px!important;}
+body:not(.dark) .expense-mini-card{padding:12px 14px!important;border-radius:14px!important;background:#f8fafc!important;}
+body:not(.dark) .expense-mini-card .mini-label{font-size:12px!important;color:#64748b!important;}
+body:not(.dark) .expense-mini-card .mini-value{font-size:20px!important;}
+body:not(.dark) .summary-table{width:100%!important;table-layout:fixed!important;border-radius:14px!important;overflow:hidden!important;font-size:12px!important;}
+body:not(.dark) .summary-table th,body:not(.dark) .summary-table td{
+  padding:10px 8px!important;background:#fff!important;border-bottom:1px solid #e5edf5!important;white-space:normal!important;line-height:1.25!important;
+}
+body:not(.dark) .summary-table th{background:#f1f6ff!important;color:#334155!important;font-size:11px!important;}
+body:not(.dark) .summary-table th:first-child,body:not(.dark) .summary-table td:first-child{width:32%!important;}
+body:not(.dark) .row-title{gap:6px!important;line-height:1.25!important;}
+body:not(.dark) .breakdown-toggle-btn{margin-left:6px!important;padding:4px 8px!important;font-size:10px!important;background:#eef6ff!important;}
+body:not(.dark) .kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:16px!important;margin-bottom:16px!important;}
+body:not(.dark) .kpi{
+  border-radius:18px!important;padding:20px 18px!important;min-height:235px!important;overflow:hidden!important;
+}
+body:not(.dark) .kpi .icon{font-size:22px!important;line-height:1.25!important;color:#111827!important;}
+body:not(.dark) .kpi .value{font-size:32px!important;margin:12px 0 2px!important;color:#111827!important;}
+body:not(.dark) .kpi .title{font-size:13px!important;color:#64748b!important;}
+body:not(.dark) .company-detail{font-size:12px!important;gap:7px!important;color:#475569!important;}
+body:not(.dark) .company-detail b{color:#111827!important;}
+body:not(.dark) .toolbar.daily-toolbar{
+  border-radius:18px!important;padding:18px 20px!important;margin:0 0 16px!important;background:#fff!important;
+}
+body:not(.dark) .toolbar.daily-toolbar h2{font-size:22px!important;color:#111827!important;}
+body:not(.dark) .daily-filter-group{
+  grid-template-columns:minmax(380px,1fr) minmax(150px,190px) repeat(4,auto)!important;
+  gap:10px!important;
+}
+body:not(.dark) .daily-filter-group .search-input,body:not(.dark) .daily-filter-group .date-select{
+  height:44px!important;background:#fff!important;border:1px solid #d9e4f0!important;border-radius:12px!important;
+  color:#111827!important;font-size:13px!important;
+}
+body:not(.dark) .btn,body:not(.dark) .btn2,body:not(.dark) .btnToggle,body:not(.dark) .nav-btn{
+  min-height:40px!important;border-radius:12px!important;font-size:12px!important;box-shadow:none!important;
+}
+body:not(.dark) .btnDark{background:#0f172a!important;color:#fff!important;}
+body:not(.dark) .daily-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:16px!important;align-items:start!important;}
+body:not(.dark) .day-card{border-radius:18px!important;background:#fff!important;}
+body:not(.dark) .day-card.high{background:#fff!important;border-color:#cbd5e1!important;}
+body:not(.dark) .day-card:hover{transform:translateY(-3px)!important;box-shadow:0 16px 40px rgba(15,23,42,.10)!important;}
+body:not(.dark) .day-head{
+  padding:16px 18px!important;background:#f8fbff!important;border-bottom:1px solid #e6edf5!important;min-height:72px!important;
+}
+body:not(.dark) .day-title{font-size:18px!important;color:#111827!important;}
+body:not(.dark) .quick-summary{font-size:12px!important;gap:6px!important;color:#475569!important;}
+body:not(.dark) .mini-chip{background:#eef2f7!important;border-color:#dce5ee!important;color:#334155!important;}
+body:not(.dark) .badge{font-size:12px!important;padding:5px 10px!important;}
+body:not(.dark) .day-card.open .day-body{padding:0 18px 18px!important;}
+body:not(.dark) .day-money-summary{gap:10px!important;margin:14px 0 10px!important;}
+body:not(.dark) .money-pill{padding:12px!important;border-radius:14px!important;}
+body:not(.dark) .money-pill strong{font-size:20px!important;}
+body:not(.dark) li{background:#f8fafc!important;border-color:#e2e8f0!important;border-radius:12px!important;padding:9px 10px!important;font-size:12px!important;}
+body:not(.dark) .money-chip,body:not(.dark) .item-money span{font-size:11px!important;padding:4px 8px!important;}
+body:not(.dark) .status-pill{background:#ecfeff!important;border-color:#99f6e4!important;color:#0f766e!important;font-size:12px!important;}
+body:not(.dark) .pagination{margin:18px 0!important;}
+body:not(.dark) .version-credit{opacity:.85!important;}
+@media(max-width:1220px){
+  body:not(.dark) .hero{grid-template-columns:1fr!important;}
+  body:not(.dark) .daily-filter-group{grid-template-columns:1fr 180px repeat(2,auto)!important;}
+  body:not(.dark) .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+}
+@media(max-width:760px){
+  body:not(.dark) .page{width:100%!important;padding:12px!important;}
+  body:not(.dark) .compact-range-toolbar{position:relative!important;top:auto!important;border-radius:16px!important;display:grid!important;grid-template-columns:1fr!important;}
+  body:not(.dark) .compact-range-control{display:grid!important;grid-template-columns:1fr!important;}
+  body:not(.dark) .range-main,body:not(.dark) .quick-actions{width:100%!important;min-width:0!important;}
+  body:not(.dark) .quick-actions{height:auto!important;flex-wrap:wrap!important;border-radius:14px!important;}
+  body:not(.dark) .hero,body:not(.dark) .daily-grid,body:not(.dark) .kpi-grid{grid-template-columns:1fr!important;}
+  body:not(.dark) .daily-filter-group{grid-template-columns:1fr!important;}
+  body:not(.dark) .daily-filter-group .search-input{min-width:0!important;}
+  body:not(.dark) .daily-filter-group .btn{width:100%!important;}
+  body:not(.dark) .total-card{overflow-x:auto!important;}
+  body:not(.dark) .summary-table{min-width:660px!important;}
+}
+
 </style></head>
 <body><div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><span class="spinner"></span><span id="loadingText">กำลังโหลดข้อมูล...</span></div></div><main class="page">
 <section class="toolbar top-toolbar compact-range-toolbar"><div class="compact-range-title"><h2>เลือกช่วงวันที่ Dashboard</h2><p class="date-helper">เลือกช่วงวันที่แบบใหม่ มีผลกับข้อมูลทั้งหน้า Dashboard</p></div><div class="compact-range-control"><button class="range-main" id="rangeOpenBtn" type="button"><span class="range-icon">📅</span><span id="rangeDisplayText">01 May 2026 → 31 May 2026</span></button><input id="rangePicker" type="text" aria-label="เลือกช่วงวันที่" autocomplete="off"><input id="startDate" type="hidden"><input id="endDate" type="hidden"><div class="quick-actions"><button class="quick-btn" id="todayBtn" type="button">วันนี้</button><button class="quick-btn" id="thisWeekBtn" type="button">สัปดาห์นี้</button><button class="quick-btn active" id="thisMonthBtn" type="button">เดือนนี้</button><button class="quick-btn muted" id="resetBtn" type="button">ดูทั้งหมด</button><a class="quick-btn nav-btn" href="/executive">Executive AI</a><button class="quick-btn theme-toggle" id="themeToggleBtn" type="button">🌙 Dark</button></div></div></section>
@@ -702,7 +864,7 @@ body.dark .loading-box{background:#111b2e!important;color:#f8fafc!important;bord
 
 <section class="toolbar daily-toolbar"><h2>รายการแยกรายวัน</h2><div class="filter-group daily-filter-group"><input class="search-input" id="searchBox" placeholder="ค้นหาทะเบียน / เลขกรมธรรม์ / บริษัท"><select class="date-select" id="dateFilter"><option value="all">ดูทั้งหมด</option></select><button class="btn btn2" id="showAllBtn">ดูทั้งหมด</button><button class="btn btnToggle active" id="viewModeToggleBtn" type="button">📄 Detail</button><button class="btn btnDark" id="exportPdfBtn">Export PDF</button><button class="btn btnDark" id="exportExcelBtn">Export Excel</button></div></section>
 <section class="daily-grid" id="cards"></section><div class="pagination"><button class="btn btn2" id="prevPageBtn">ก่อนหน้า</button><span class="page-info" id="pageInfo">Page 1</span><button class="btn btn2" id="nextPageBtn">ถัดไป</button></div><p class="status-pill" id="status">Loading...</p>
-<div class="version-credit">Version: __APP_VERSION__ · Ray UI/UX Upgrade</div>
+<div class="version-credit">Version: __APP_VERSION__ · Dashboard UI Balance Fix</div>
 </main>
 <script>
 let report=null,allDays=[],filteredDays=[],viewDays=[],dailyChart=null,rangePickerInstance=null;let currentPage=1,pageSize=8,viewMode='detail',activeSelected='all';const box=id=>document.getElementById(id);const money=n=>Math.round(n||0).toLocaleString('th-TH');function destroy(){if(dailyChart)dailyChart.destroy()}function fmtDate(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}function parseISODate(v){const parts=String(v||'').split('-').map(Number);return parts.length===3?new Date(parts[0],parts[1]-1,parts[2]):new Date()}function prettyRange(s,e){if(!s&&!e)return 'ข้อมูลสะสมทั้งหมด';const opt={day:'2-digit',month:'short',year:'numeric'};const a=s?parseISODate(s).toLocaleDateString('en-GB',opt):'เริ่มต้น';const b=e?parseISODate(e).toLocaleDateString('en-GB',opt):'สิ้นสุด';return `${a} → ${b}`}function updateRangeLabel(){const s=box('startDate')?.value||'',e=box('endDate')?.value||'';if(box('rangeDisplayText'))box('rangeDisplayText').textContent=prettyRange(s,e);if(rangePickerInstance&&s&&e)rangePickerInstance.setDate([s,e],false,'Y-m-d')}function setActiveQuick(id){['todayBtn','thisWeekBtn','thisMonthBtn'].forEach(x=>box(x)?.classList.remove('active'));if(id)box(id)?.classList.add('active')}function setRange(start,end,quickId){box('startDate').value=start||'';box('endDate').value=end||'';setActiveQuick(quickId);updateRangeLabel()}function setCurrentMonthDefault(){const now=new Date();setRange(fmtDate(new Date(now.getFullYear(),now.getMonth(),1)),fmtDate(new Date(now.getFullYear(),now.getMonth()+1,0)),'thisMonthBtn')}function setToday(){const now=new Date();setRange(fmtDate(now),fmtDate(now),'todayBtn')}function setThisWeek(){const now=new Date();const day=now.getDay();const diffToMonday=(day===0?-6:1-day);const start=new Date(now);start.setDate(now.getDate()+diffToMonday);const end=new Date(start);end.setDate(start.getDate()+6);setRange(fmtDate(start),fmtDate(end),'thisWeekBtn')}function setupRange(){const dates=allDays.map(d=>d.isoDate).filter(Boolean).sort();if(!box('startDate').value)box('startDate').value=dates[0]||'';if(!box('endDate').value)box('endDate').value=dates[dates.length-1]||'';updateRangeLabel()}function itemText(item){return (item&&typeof item==='object')?(item.text||''):String(item||'')}function itemNet(item){return Number((item&&typeof item==='object')?(item.net_amount||0):0)||0}function itemCollected(item){return Number((item&&typeof item==='object')?(item.collected_amount||0):0)||0}function flattenRows(days){const rows=[];days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item:itemText(item),net_amount:itemNet(item),collected_amount:itemCollected(item)}))));return rows}

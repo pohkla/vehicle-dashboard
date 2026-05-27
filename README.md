@@ -23,7 +23,7 @@ Deploy on Render with existing ENV:
 - Improved selected/range/day/month/year readability.
 
 
-## v14.15 Dark Mode Balance Fix
+## v14.17 Dashboard UI Balance Fix
 - อัปเกรด UI/UX หน้า `/dashboard`, `/admin`, `/executive` ให้เป็น Modern AI Product style ตามแนว blocks.so/ai
 - ปรับ Glass Card, Sticky Toolbar, Compact Controls, Mobile Responsive และ Table overflow สำหรับจอเล็ก
 - ไม่เปลี่ยน logic การคำนวณรายได้/รายจ่ายหลัก เพื่อลดความเสี่ยงข้อมูลผิดเพี้ยน
