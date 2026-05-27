@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import re
+import unicodedata
 import json
 import base64
 import time
@@ -21,7 +23,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-APP_VERSION = "v14.18 Dashboard 40/60 Layout Fix"
+APP_VERSION = "v14.20 Search Space Normalize Fix"
 app = FastAPI(title=f"Vehicle Dashboard {APP_VERSION}")
 
 
@@ -612,10 +614,27 @@ def get_money_totals_from_records(rows: list[dict[str, Any]], store: dict[str, A
     }
 
 
+
+def normalize_search_text(value: Any) -> str:
+    """Normalize search text so vehicle plate/code variants match.
+
+    Examples:
+    - กษบ164 == กษบ-164
+    - ผจ-4573 == ผจ4573
+    - ผจ-4573สงขลา == ผจ-4573 สงขลา
+
+    The function removes every character that is not a Unicode letter or number,
+    so separators such as spaces, hyphens, dots, slashes, underscores,
+    non-breaking spaces, and punctuation do not affect search matching.
+    """
+    text = unicodedata.normalize("NFKC", str(value or "")).strip().lower()
+    return re.sub(r"[^\w]+", "", text, flags=re.UNICODE)
+
 def get_dashboard_data(start: str | None = None, end: str | None = None, q: str | None = None) -> dict[str, Any]:
     store, _ = read_github_store()
     all_rows = store.get("daily_records", [])
     q_lower = (q or "").strip().lower()
+    q_normalized = normalize_search_text(q_lower)
 
     filtered_rows = []
     for row in all_rows:
@@ -626,7 +645,8 @@ def get_dashboard_data(start: str | None = None, end: str | None = None, q: str 
             continue
         if q_lower:
             haystack = " ".join([row.get("item", ""), row.get("company", ""), row.get("vehicle_title", ""), row.get("date_text", "")]).lower()
-            if q_lower not in haystack:
+            haystack_normalized = normalize_search_text(haystack)
+            if q_lower not in haystack and q_normalized not in haystack_normalized:
                 continue
         filtered_rows.append(row)
 
@@ -802,7 +822,7 @@ textarea{width:100%;height:300px;border:1px solid var(--line);border-radius:20px
         <h1>Vehicle Dashboard Admin</h1>
         <p>ศูนย์นำเข้าข้อมูลแบบ Replace All พร้อมตรวจสอบสถานะและส่งต่อ Dashboard สำหรับทีมปฏิบัติการ</p>
       </div>
-      <div class="version">Version: v14.18 Dashboard 40/60 Layout Fix</div>
+      <div class="version">Version: v14.20 Search Space Normalize Fix</div>
     </div>
   </section>
   <main class="card">
