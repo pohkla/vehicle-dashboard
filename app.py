@@ -23,7 +23,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "20"))
 DASHBOARD_CACHE: dict[str, Any] = {"key": None, "data": None, "created_at": 0.0}
 
-APP_VERSION = "v14.20 Search Space Normalize Fix"
+APP_VERSION = "v14.21 UIUX Professional Polish"
 app = FastAPI(title=f"Vehicle Dashboard {APP_VERSION}")
 
 
@@ -822,7 +822,7 @@ textarea{width:100%;height:300px;border:1px solid var(--line);border-radius:20px
         <h1>Vehicle Dashboard Admin</h1>
         <p>ศูนย์นำเข้าข้อมูลแบบ Replace All พร้อมตรวจสอบสถานะและส่งต่อ Dashboard สำหรับทีมปฏิบัติการ</p>
       </div>
-      <div class="version">Version: v14.20 Search Space Normalize Fix</div>
+      <div class="version">Version: v14.21 UIUX Professional Polish</div>
     </div>
   </section>
   <main class="card">

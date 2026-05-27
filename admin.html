@@ -3,487 +3,246 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vehicle Admin Console</title>
+<title>Vehicle Dashboard Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#f0f4fc;
-  --surface:#ffffff;
-  --surface-alt:#f7f9fe;
-  --text:#0d1526;
-  --text-2:#4b5675;
-  --text-3:#8e9ab3;
-  --primary:#2563eb;
-  --primary-light:#eff6ff;
-  --primary-border:#bfdbfe;
-  --cyan:#0891b2;
-  --line:#e2e8f5;
-  --shadow-sm:0 2px 8px rgba(15,23,60,.07);
-  --shadow:0 8px 28px rgba(15,23,60,.10);
-  --shadow-lg:0 20px 60px rgba(15,23,60,.14);
-  --radius-sm:12px;
-  --radius:16px;
-  --radius-lg:24px;
-  --radius-xl:32px;
+  --bg:#eef4fb;--surface:#ffffff;--surface-2:#f8fafc;--text:#101828;--muted:#667085;
+  --primary:#1d4ed8;--primary-2:#2563eb;--cyan:#12b6a6;--line:#dbe4f0;
+  --shadow:0 18px 48px rgba(15,23,42,.09);--soft-shadow:0 8px 24px rgba(15,23,42,.06);
+  --radius:24px;
 }
-*{box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box}
 body{
-  font-family:Prompt,sans-serif;
-  color:var(--text);
-  background:var(--bg);
-  min-height:100vh;
+  margin:0;font-family:Prompt,sans-serif;color:var(--text);letter-spacing:-.01em;
+  background:radial-gradient(circle at 0% 0%,rgba(37,99,235,.16),transparent 30%),
+             radial-gradient(circle at 100% 0%,rgba(20,184,166,.14),transparent 28%),
+             linear-gradient(180deg,#f8fbff 0%,var(--bg) 100%);
 }
-body.dark{
-  --bg:#080e1c;
-  --surface:#0f1629;
-  --surface-alt:#141e35;
-  --text:#eef2fc;
-  --text-2:#8fa3c8;
-  --text-3:#4a5d82;
-  --primary:#3b82f6;
-  --primary-light:rgba(59,130,246,.12);
-  --primary-border:rgba(59,130,246,.3);
-  --line:rgba(255,255,255,.07);
-  --shadow-sm:0 2px 8px rgba(0,0,0,.3);
-  --shadow:0 8px 28px rgba(0,0,0,.36);
-  --shadow-lg:0 20px 60px rgba(0,0,0,.48);
+a{color:inherit}button,input,textarea{font-family:Prompt,sans-serif}
+.wrap{width:min(1080px,94vw);margin:0 auto;padding:22px 0 38px}
+.nav{
+  display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:10px 12px;border-radius:20px;
+  background:rgba(255,255,255,.82);border:1px solid rgba(219,228,240,.92);box-shadow:var(--soft-shadow);backdrop-filter:blur(14px)
 }
-a{color:inherit;text-decoration:none}
-button,input,textarea{font-family:Prompt,sans-serif}
-
-/* ── Topbar ── */
-.topbar{
-  position:sticky;top:0;z-index:100;
-  display:flex;align-items:center;gap:10px;
-  padding:10px 24px;
-  background:rgba(255,255,255,.86);
-  backdrop-filter:blur(20px);
-  border-bottom:1px solid var(--line);
-  box-shadow:var(--shadow-sm);
-}
-body.dark .topbar{background:rgba(8,14,28,.88)}
-.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px;margin-right:auto}
-.brand-icon{
-  width:34px;height:34px;border-radius:var(--radius-sm);
-  background:linear-gradient(135deg,#2563eb,#0891b2);
-  display:grid;place-items:center;font-size:18px;
-  box-shadow:0 4px 12px rgba(37,99,235,.3);
-}
-.nav-link{
-  display:flex;align-items:center;gap:6px;
-  padding:8px 14px;border-radius:var(--radius-sm);
-  font-weight:600;font-size:13px;
-  color:var(--text-2);
-  transition:all .15s ease;
-  border:1px solid transparent;
-}
-.nav-link:hover{background:var(--surface);border-color:var(--line);color:var(--primary)}
-.nav-link.active{background:var(--primary-light);border-color:var(--primary-border);color:var(--primary)}
-
-/* ── Page wrap ── */
-.page{width:min(1060px,96vw);margin:0 auto;padding:28px 0 48px}
-
-/* ── Hero ── */
+.nav-brand{margin-right:auto;display:flex;align-items:center;gap:10px;font-weight:800;color:#111827}
+.nav-brand .logo{width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#1d4ed8,#12b6a6);color:#fff;box-shadow:0 8px 20px rgba(37,99,235,.22)}
+.nav a{text-decoration:none;color:#1d4ed8;background:#f8fbff;border:1px solid var(--line);padding:10px 14px;border-radius:14px;font-weight:800;font-size:14px;transition:.18s}
+.nav a:hover{transform:translateY(-1px);background:#eff6ff}
 .hero{
-  background:linear-gradient(135deg,#0f1f4d 0%,#1e40af 55%,#0891b2 100%);
-  border-radius:var(--radius-xl);
-  padding:32px 36px;
-  color:#fff;
-  margin-bottom:24px;
-  position:relative;
-  overflow:hidden;
-  box-shadow:0 16px 48px rgba(37,99,235,.24);
+  position:relative;overflow:hidden;margin-bottom:16px;border-radius:28px;padding:28px 30px;
+  color:#fff;background:linear-gradient(135deg,#111827 0%,#1d4ed8 58%,#12b6a6 100%);box-shadow:0 22px 58px rgba(37,99,235,.18)
 }
-.hero::before{
-  content:"";position:absolute;
-  right:-80px;top:-100px;
-  width:300px;height:300px;
-  border-radius:999px;
-  background:rgba(255,255,255,.08);
+.hero:before{content:"";position:absolute;right:-70px;top:-115px;width:270px;height:270px;border-radius:999px;background:rgba(255,255,255,.13)}
+.hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:end}
+.eyebrow{display:inline-flex;gap:8px;align-items:center;margin-bottom:10px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);font-size:13px;font-weight:700}
+.hero h1{margin:0;font-size:clamp(30px,3.6vw,42px);line-height:1.08;letter-spacing:-.045em}
+.hero p{margin:10px 0 0;color:rgba(255,255,255,.86);font-size:15px;max-width:720px}
+.version{display:inline-flex;white-space:nowrap;align-items:center;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.24);font-weight:800;font-size:13px}
+.card{
+  background:rgba(255,255,255,.92);border:1px solid rgba(219,228,240,.95);border-radius:30px;padding:22px;box-shadow:var(--shadow);backdrop-filter:blur(14px)
 }
-.hero::after{
-  content:"";position:absolute;
-  left:-60px;bottom:-80px;
-  width:220px;height:220px;
-  border-radius:999px;
-  background:rgba(8,145,178,.2);
-}
-.hero-inner{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
-.hero-tag{
-  display:inline-flex;align-items:center;gap:6px;
-  padding:5px 10px;border-radius:999px;
-  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.22);
-  font-size:12px;font-weight:700;margin-bottom:12px;
-}
-.hero h1{font-size:clamp(26px,3.2vw,38px);font-weight:800;letter-spacing:-.04em;line-height:1.1}
-.hero p{margin-top:8px;color:rgba(255,255,255,.82);font-size:14px;line-height:1.6}
-.version-badge{
-  display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
-  padding:8px 14px;border-radius:999px;
-  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);
-  font-size:12px;font-weight:700;
-}
-
-/* ── Main card ── */
-.main-card{
-  background:var(--surface);
-  border:1px solid var(--line);
-  border-radius:var(--radius-xl);
-  box-shadow:var(--shadow);
-  overflow:hidden;
-}
-.card-layout{display:grid;grid-template-columns:240px 1fr}
-
-/* ── Sidebar ── */
-.sidebar{
-  background:var(--surface-alt);
-  border-right:1px solid var(--line);
-  padding:20px 16px;
-}
-.sidebar-label{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;padding:0 4px}
-.tab-list{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
-.tab-btn{
-  display:flex;align-items:flex-start;gap:10px;
-  width:100%;padding:12px 14px;
-  border:1px solid transparent;
-  border-radius:var(--radius);
-  background:transparent;
-  color:var(--text-2);
-  text-align:left;cursor:pointer;
-  transition:all .18s ease;
-}
-.tab-btn-num{
-  width:22px;height:22px;flex-shrink:0;margin-top:1px;
-  border-radius:8px;background:var(--line);
-  display:grid;place-items:center;
-  font-size:11px;font-weight:800;color:var(--text-3);
-  transition:all .18s;
-}
-.tab-btn-text{font-weight:700;font-size:14px}
-.tab-btn-sub{font-size:11px;color:var(--text-3);margin-top:2px;font-weight:500}
-.tab-btn:hover{background:var(--surface);border-color:var(--line)}
-.tab-btn.active{background:var(--surface);border-color:var(--primary-border);color:var(--primary)}
-.tab-btn.active .tab-btn-num{background:var(--primary);color:#fff}
-.tab-btn.active .tab-btn-sub{color:var(--text-2)}
-
-.info-box{
-  border-radius:var(--radius);
-  background:var(--primary-light);
-  border:1px solid var(--primary-border);
-  padding:12px 14px;
-  font-size:12px;line-height:1.6;color:var(--text-2);
-}
-body.dark .info-box{background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.2)}
-
-/* ── Workspace ── */
-.workspace{padding:28px 30px;min-width:0}
-.panel{display:none}
-.panel.active{display:block}
-.panel-header{margin-bottom:20px}
-.panel-header h2{font-size:22px;font-weight:800;letter-spacing:-.03em}
-.panel-header p{margin-top:6px;color:var(--text-2);font-size:13px;line-height:1.55}
-.alert{
-  padding:12px 16px;
-  border-radius:var(--radius);
-  font-size:13px;line-height:1.55;
-  margin-bottom:16px;
-  display:flex;align-items:flex-start;gap:10px;
-}
-.alert-icon{flex-shrink:0;width:18px;height:18px;border-radius:6px;display:grid;place-items:center;font-size:11px}
-.alert.info{background:var(--primary-light);border:1px solid var(--primary-border);color:var(--text)}
-.alert.info .alert-icon{background:var(--primary);color:#fff}
-.alert.warn{background:#fff7ed;border:1px solid #fed7aa;color:#7c2d12}
-body.dark .alert.warn{background:rgba(249,115,22,.1);border-color:rgba(249,115,22,.25);color:#fdba74}
-.alert.warn .alert-icon{background:#f97316;color:#fff}
-
-/* ── Drop zone ── */
+.admin-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;align-items:start}
+.side-panel{background:linear-gradient(180deg,#f8fbff,#fff);border:1px solid var(--line);border-radius:24px;padding:16px;position:sticky;top:86px}
+.side-title{font-size:13px;color:var(--muted);font-weight:700;margin-bottom:10px}
+.tabs{display:grid;gap:8px;margin:0}
+.tab-btn{width:100%;border:1px solid transparent;background:transparent;color:#475467;border-radius:16px;padding:13px 14px;text-align:left;font-weight:800;cursor:pointer;transition:.18s}
+.tab-btn span{display:block;font-size:12px;font-weight:600;color:#98a2b3;margin-top:3px}
+.tab-btn.active{background:#ffffff;color:#1d4ed8;border-color:#cfe0ff;box-shadow:0 10px 24px rgba(37,99,235,.10)}
+.side-note{margin-top:14px;padding:12px;border-radius:16px;background:#f1f5f9;color:#667085;font-size:12px;line-height:1.55;border:1px solid #e2e8f0}
+.workspace{min-width:0}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+h2{margin:0;font-size:24px;letter-spacing:-.03em}
+.panel-sub{margin:5px 0 0;color:var(--muted);font-size:13px}
+.hint{padding:11px 13px;background:#eff6ff;color:#1d4ed8;border:1px solid #cfe0ff;border-radius:16px;margin:0 0 12px;font-size:13px;line-height:1.55}
+.hint.danger{background:#fff7ed;color:#9a3412;border-color:#fed7aa}
 .dropzone{
-  border:2px dashed var(--primary-border);
-  background:linear-gradient(180deg,var(--surface),var(--surface-alt));
-  border-radius:var(--radius-lg);
-  padding:32px 24px;
-  text-align:center;
-  cursor:pointer;
-  transition:all .2s ease;
-  margin-bottom:16px;
-  position:relative;
+  border:1.6px dashed #93b7fb;background:linear-gradient(180deg,#ffffff,#f8fbff);border-radius:22px;padding:24px;text-align:center;
+  transition:.18s;cursor:pointer;margin:12px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.8)
 }
-.dropzone:hover,.dropzone.dragover{
-  border-color:var(--primary);
-  background:var(--primary-light);
-  transform:translateY(-1px);
-}
-.drop-icon-wrap{
-  width:54px;height:54px;
-  border-radius:var(--radius-lg);
-  background:var(--primary-light);
-  border:1px solid var(--primary-border);
-  display:grid;place-items:center;
-  font-size:22px;margin:0 auto 12px;
-}
-.drop-title{font-size:18px;font-weight:800;color:var(--primary)}
-.drop-sub{color:var(--text-3);font-size:13px;margin-top:4px}
-.file-pill{
-  display:inline-flex;align-items:center;gap:6px;
-  margin-top:10px;padding:6px 12px;
-  border-radius:999px;
-  background:var(--primary-light);border:1px solid var(--primary-border);
-  font-size:12px;font-weight:700;color:var(--primary);
-}
+.dropzone:hover,.dropzone.dragover{border-color:#2563eb;background:#eff6ff;transform:translateY(-1px)}
+.drop-icon{width:52px;height:52px;border-radius:18px;margin:0 auto 10px;display:grid;place-items:center;background:linear-gradient(135deg,#dbeafe,#ccfbf1);font-size:24px}
+.drop-title{font-size:19px;font-weight:800;color:#1d4ed8}
+.drop-sub{color:#667085;margin-top:5px;font-size:13px}
+.file-name{display:inline-flex;margin-top:10px;padding:6px 10px;border-radius:999px;background:#f1f5f9;color:#111827;font-weight:800;font-size:12px}
 input[type=file]{display:none}
-textarea{
-  width:100%;height:280px;
-  border:1px solid var(--line);border-radius:var(--radius);
-  padding:14px 16px;
-  font-size:14px;line-height:1.65;
-  background:var(--surface);color:var(--text);
-  resize:vertical;outline:none;
-  transition:border-color .15s;
-}
-textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
-
-/* ── Buttons ── */
-.btn-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  padding:11px 18px;border-radius:var(--radius);
-  font-size:14px;font-weight:700;cursor:pointer;border:0;
-  transition:all .18s ease;
-}
-.btn-primary{
-  background:linear-gradient(135deg,#2563eb,#0891b2);color:#fff;
-  box-shadow:0 8px 20px rgba(37,99,235,.22);
-}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(37,99,235,.3)}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.btn-ghost{
-  background:var(--surface);color:var(--primary);
-  border:1px solid var(--primary-border);
-}
-.btn-ghost:hover{background:var(--primary-light)}
-
-/* ── Status box ── */
-.status-box{
-  margin-top:14px;
-  padding:14px 16px;
-  border-radius:var(--radius);
-  background:var(--surface-alt);
-  border:1px solid var(--line);
-  font-size:13px;line-height:1.65;color:var(--text-2);
-  min-height:50px;
-  white-space:pre-wrap;
-}
-.status-box.loading{
-  color:var(--primary);font-weight:700;
-  display:flex;align-items:center;gap:10px;
-}
-.spinner{
-  width:16px;height:16px;flex-shrink:0;
-  border-radius:999px;
-  border:2.5px solid var(--primary-border);
-  border-top-color:var(--primary);
-  animation:spin .7s linear infinite;
-}
+textarea{width:100%;height:300px;border:1px solid var(--line);border-radius:20px;padding:14px;font-size:14px;line-height:1.65;background:#fff;color:#111827;box-shadow:inset 0 1px 2px rgba(15,23,42,.04);resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.btn{border:0;border-radius:15px;padding:12px 16px;font-weight:800;cursor:pointer;color:#fff;background:linear-gradient(135deg,#2563eb,#12b6a6);box-shadow:0 12px 26px rgba(37,99,235,.18);transition:.18s;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover{transform:translateY(-1px)}.btn:disabled{opacity:.65;cursor:not-allowed;transform:none}
+.btn2{background:#f8fbff;color:#1d4ed8;border:1px solid #cfe0ff;box-shadow:none}
+.status{margin-top:12px;color:var(--muted);white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);padding:13px 14px;border-radius:16px;font-size:13px;min-height:48px}
+.status.loading{color:#1d4ed8;font-weight:800}
+.status.loading:before{content:"";display:inline-block;width:15px;height:15px;margin-right:8px;border-radius:999px;border:3px solid #dbeafe;border-top-color:#2563eb;vertical-align:-3px;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-
-/* ── Responsive ── */
-@media(max-width:780px){
-  .topbar{padding:10px 16px}
-  .page{width:100%;padding:16px 0 40px}
-  .hero{padding:24px 20px;border-radius:var(--radius-lg);margin:0 12px 20px}
-  .hero-inner{flex-direction:column;align-items:flex-start}
-  .main-card{margin:0 12px;border-radius:var(--radius-lg)}
-  .card-layout{grid-template-columns:1fr}
-  .sidebar{border-right:0;border-bottom:1px solid var(--line);padding:16px}
-  .tab-list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .tab-btn-sub{display:none}
-  .sidebar-label{display:none}
-  .workspace{padding:20px 16px}
+@media(max-width:860px){
+  .wrap{width:100%;padding:12px}
+  .nav{position:relative;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .nav-brand{grid-column:1/-1}
+  .nav a{text-align:center}
+  .hero{padding:24px 20px;border-radius:24px}
+  .hero-grid{grid-template-columns:1fr}
+  .version{width:max-content}
+  .card{padding:16px;border-radius:24px}
+  .admin-layout{grid-template-columns:1fr}
+  .side-panel{position:relative;top:0;padding:10px;border-radius:20px}
+  .tabs{grid-template-columns:1fr 1fr}
+  .tab-btn{text-align:center;padding:11px 10px}
+  .tab-btn span,.side-note,.side-title{display:none}
+  .panel-head{display:block}
+  .dropzone{padding:22px 12px}
+  .row{display:grid}
+  .btn{width:100%}
 }
+@media(max-width:520px){.tabs{grid-template-columns:1fr}.hero h1{font-size:28px}}
 </style>
 </head>
 <body>
-
-<header class="topbar">
-  <div class="brand">
-    <div class="brand-icon">🚘</div>
-    <span>Vehicle Admin</span>
-  </div>
-  <a href="/admin" class="nav-link active">⚙️ Admin</a>
-  <a href="/dashboard" target="_blank" class="nav-link">📊 Dashboard</a>
-  <a href="/executive" target="_blank" class="nav-link">📈 Executive</a>
-  <a href="/api/health" target="_blank" class="nav-link">💚 Health</a>
-</header>
-
-<div class="page">
-  <!-- Hero -->
+<div class="wrap">
+  <nav class="nav">
+    <div class="nav-brand"><div class="logo">🚘</div><span>Vehicle Admin Console</span></div>
+    <a href="/admin">Admin</a><a href="/dashboard" target="_blank">Dashboard</a><a href="/api/health" target="_blank">Health</a>
+  </nav>
   <section class="hero">
-    <div class="hero-inner">
+    <div class="hero-grid">
       <div>
-        <div class="hero-tag">⚙️ Import Center</div>
+        <div class="eyebrow">⚙️ Import Center</div>
         <h1>Vehicle Dashboard Admin</h1>
-        <p>ศูนย์นำเข้าข้อมูล Replace All พร้อมตรวจสอบสถานะ<br>และส่งต่อ Dashboard สำหรับทีมปฏิบัติการ</p>
+        <p>ศูนย์นำเข้าข้อมูลแบบ Replace All พร้อมตรวจสอบสถานะและส่งต่อ Dashboard สำหรับทีมปฏิบัติการ</p>
       </div>
-      <div class="version-badge">📦 v14.20 Search Space Normalize Fix</div>
+      <div class="version">Version: v14.21 UIUX Professional Polish</div>
     </div>
   </section>
-
-  <!-- Main Card -->
-  <div class="main-card">
-    <div class="card-layout">
-
-      <!-- Sidebar -->
-      <aside class="sidebar">
-        <div class="sidebar-label">เลือกวิธีนำเข้าข้อมูล</div>
-        <div class="tab-list">
-          <button class="tab-btn active" data-tab="excelPanel" type="button">
-            <div class="tab-btn-num">1</div>
-            <div>
-              <div class="tab-btn-text">Import Excel</div>
-              <div class="tab-btn-sub">ไฟล์ .xlsx / .xls</div>
-            </div>
-          </button>
-          <button class="tab-btn" data-tab="textPanel" type="button">
-            <div class="tab-btn-num">2</div>
-            <div>
-              <div class="tab-btn-text">Import Text</div>
-              <div class="tab-btn-sub">ข้อความรายสัปดาห์</div>
-            </div>
-          </button>
+  <main class="card">
+    <div class="admin-layout">
+      <aside class="side-panel">
+        <div class="side-title">เลือกวิธีนำเข้าข้อมูล</div>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="excelPanel" type="button">1) Import Excel<span>เหมาะกับไฟล์ .xlsx / .xls</span></button>
+          <button class="tab-btn" data-tab="textPanel" type="button">2) Import Text<span>สำหรับข้อความรายสัปดาห์</span></button>
         </div>
-        <div class="info-box">
-          ⚠️ ระบบจะแทนที่ข้อมูลเดิม<strong>ทั้งหมด</strong> กรุณาตรวจสอบไฟล์ก่อนกด Upload
-        </div>
+        <div class="side-note">ระบบจะใช้ข้อมูลชุดล่าสุดแทนข้อมูลเดิมทั้งหมด กรุณาตรวจไฟล์ก่อนกด Upload</div>
       </aside>
-
-      <!-- Workspace -->
       <section class="workspace">
-
-        <!-- Excel Panel -->
-        <section class="panel active" id="excelPanel">
-          <div class="panel-header">
-            <h2>Import Excel</h2>
-            <p>อัปโหลดไฟล์ Excel เพื่อบันทึกข้อมูลขึ้น GitHub JSON Database</p>
-          </div>
-          <div class="alert info">
-            <div class="alert-icon">ℹ</div>
-            <span>รองรับ .xlsx / .xls ที่มี header: <strong>วันที่, ประเภทรถ, บริษัท, รหัส, ยอดสุทธิ, ยอดเก็บจริง</strong></span>
-          </div>
+        <section class="tab-panel active" id="excelPanel">
+          <div class="panel-head"><div><h2>Import Excel</h2><p class="panel-sub">อัปโหลดไฟล์ Excel เพื่อบันทึกข้อมูลขึ้น GitHub JSON DB</p></div></div>
+          <div class="hint">รองรับไฟล์ .xlsx / .xls ที่มี header: วันที่, ประเภทรถ, บริษัท, รหัส, ยอดสุทธิ, ยอดเก็บจริง</div>
           <input type="file" id="excelFile" accept=".xlsx,.xls">
-          <div class="dropzone" id="excelDrop">
-            <div class="drop-icon-wrap">⬆️</div>
-            <div class="drop-title">ลากวางไฟล์ Excel ที่นี่</div>
-            <div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์จากเครื่อง</div>
-            <div class="file-pill" id="excelName">ยังไม่ได้เลือกไฟล์</div>
-          </div>
-          <div class="btn-row">
-            <button class="btn btn-primary" id="excelBtn" type="button">⬆️ Upload Excel &amp; บันทึก GitHub</button>
-            <a class="btn btn-ghost" href="/dashboard" target="_blank">📊 เปิด Dashboard</a>
-          </div>
-          <div class="status-box" id="excelStatus">พร้อม Import Excel</div>
+          <div class="dropzone" id="excelDrop"><div class="drop-icon">⬆️</div><div class="drop-title">ลากวางไฟล์ Excel ที่นี่</div><div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์จากเครื่อง</div><div class="file-name" id="excelName">ยังไม่ได้เลือกไฟล์</div></div>
+          <div class="row"><button class="btn" id="excelBtn" type="button">Upload Excel และบันทึก GitHub</button><a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard</a></div>
+          <div class="status" id="excelStatus">พร้อม Import Excel</div>
         </section>
-
-        <!-- Text Panel -->
-        <section class="panel" id="textPanel">
-          <div class="panel-header">
-            <h2>Import Text</h2>
-            <p>นำเข้าข้อความรายสัปดาห์หรือไฟล์ .txt สำหรับ update ข้อมูล</p>
-          </div>
-          <div class="alert warn">
-            <div class="alert-icon">⚠</div>
-            <span>Text Import ใช้ flow เดิมจาก v6.2 และ<strong>ไม่ต้องกรอก Admin Token</strong></span>
-          </div>
+        <section class="tab-panel" id="textPanel">
+          <div class="panel-head"><div><h2>Import Text</h2><p class="panel-sub">นำเข้าข้อความรายสัปดาห์หรือไฟล์ .txt</p></div></div>
+          <div class="hint danger">Text Import ใช้ flow เดิมจาก v6.2 และไม่ต้องกรอก Admin Token</div>
           <input type="file" id="textFile" accept=".txt,text/plain">
-          <div class="dropzone" id="textDrop">
-            <div class="drop-icon-wrap">📄</div>
-            <div class="drop-title">ลากวางไฟล์ Text ที่นี่</div>
-            <div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์ .txt / วางข้อความด้านล่าง</div>
-            <div class="file-pill" id="textName">ยังไม่ได้เลือกไฟล์</div>
-          </div>
-          <textarea id="raw_text" placeholder="วางข้อมูลรายสัปดาห์หลายชุดต่อกันได้ที่นี่..."></textarea>
-          <div class="btn-row">
-            <button class="btn btn-primary" id="textBtn" type="button">📥 Import Text &amp; บันทึก GitHub</button>
-            <a class="btn btn-ghost" href="/dashboard" target="_blank">📊 เปิด Dashboard</a>
-          </div>
-          <div class="status-box" id="textStatus">พร้อม Import Text</div>
+          <div class="dropzone" id="textDrop"><div class="drop-icon">📄</div><div class="drop-title">ลากวางไฟล์ Text ที่นี่</div><div class="drop-sub">หรือคลิกเพื่อเลือกไฟล์ .txt จากเครื่อง / หรือวางข้อความด้านล่าง</div><div class="file-name" id="textName">ยังไม่ได้เลือกไฟล์</div></div>
+          <textarea id="raw_text" placeholder="วางข้อมูลรายสัปดาห์หลายชุดต่อกันได้ตรงนี้..."></textarea>
+          <div class="row"><button class="btn" id="textBtn" type="button">Import Text และบันทึก GitHub</button><a class="btn btn2" href="/dashboard" target="_blank">เปิด Dashboard</a></div>
+          <div class="status" id="textStatus">พร้อม Import Text</div>
         </section>
-
       </section>
     </div>
-  </div>
+  </main>
 </div>
-
 <script>
-const $=id=>document.getElementById(id);
-const pretty=d=>JSON.stringify(d,null,2);
 
-function setStatus(el,msg,loading=false){
-  el.className='status-box'+(loading?' loading':'');
-  el.innerHTML=loading?`<div class="spinner"></div><span>${msg}</span>`:msg;
+const $ = (id) => document.getElementById(id);
+const excelFile = $('excelFile');
+const textFile = $('textFile');
+const rawText = $('raw_text');
+const excelStatus = $('excelStatus');
+const textStatus = $('textStatus');
+const pretty = (d) => JSON.stringify(d, null, 2);
+
+function setStatus(el, message, loading=false){
+  el.classList.toggle('loading', loading);
+  el.textContent = message;
 }
 
-document.querySelectorAll('.tab-btn').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+document.querySelectorAll('.tab-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
     btn.classList.add('active');
     $(btn.dataset.tab).classList.add('active');
   });
 });
 
-function bindDrop(zoneId,input,after){
-  const zone=$(zoneId);
-  zone.addEventListener('click',()=>input.click());
-  ['dragenter','dragover'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.add('dragover')}));
-  ['dragleave','drop'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.remove('dragover')}));
-  zone.addEventListener('drop',e=>{
-    const f=e.dataTransfer.files&&e.dataTransfer.files[0];
-    if(!f)return;const dt=new DataTransfer();dt.items.add(f);input.files=dt.files;after(f);
+function bindDrop(zoneId, input, after){
+  const zone = $(zoneId);
+  zone.addEventListener('click', () => input.click());
+  ['dragenter','dragover'].forEach((ev) => zone.addEventListener(ev, (e) => {
+    e.preventDefault();
+    zone.classList.add('dragover');
+  }));
+  ['dragleave','drop'].forEach((ev) => zone.addEventListener(ev, (e) => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+  }));
+  zone.addEventListener('drop', (e) => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(!f) return;
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    input.files = dt.files;
+    after(f);
   });
-  input.addEventListener('change',()=>{const f=input.files&&input.files[0];if(f)after(f);});
+  input.addEventListener('change', () => {
+    const f = input.files && input.files[0];
+    if(f) after(f);
+  });
 }
 
-bindDrop('excelDrop',$('excelFile'),f=>{$('excelName').textContent=f.name});
-bindDrop('textDrop',$('textFile'),async f=>{
-  $('textName').textContent=f.name;
-  $('raw_text').value=await f.text();
+bindDrop('excelDrop', excelFile, (f) => { $('excelName').textContent = f.name; });
+bindDrop('textDrop', textFile, async (f) => {
+  $('textName').textContent = f.name;
+  rawText.value = await f.text();
 });
 
-$('excelBtn').addEventListener('click',async()=>{
-  const file=$('excelFile').files&&$('excelFile').files[0];
-  if(!file){setStatus($('excelStatus'),'กรุณาเลือกไฟล์ Excel ก่อน');return;}
-  const fd=new FormData();fd.append('file',file);
-  $('excelBtn').disabled=true;
-  setStatus($('excelStatus'),'กำลังอัปโหลด Excel → /api/import/excel ...',true);
+$('excelBtn').addEventListener('click', async () => {
+  const file = excelFile.files && excelFile.files[0];
+  if(!file){ setStatus(excelStatus, 'กรุณาเลือกไฟล์ Excel ก่อน'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  $('excelBtn').disabled = true;
+  setStatus(excelStatus, 'กำลังอัปโหลด Excel → /api/import/excel ...', true);
   try{
-    const res=await fetch('/api/import/excel',{method:'POST',body:fd});
-    const data=await res.json();
-    if(!res.ok){setStatus($('excelStatus'),data.detail||pretty(data));return;}
-    setStatus($('excelStatus'),'✅ Import Excel สำเร็จ\n'+pretty(data));
+    const res = await fetch('/api/import/excel', { method:'POST', body: fd });
+    const data = await res.json();
+    if(!res.ok){ setStatus(excelStatus, data.detail || pretty(data)); return; }
+    setStatus(excelStatus, 'Import Excel สำเร็จ\n' + pretty(data));
   }catch(err){
-    setStatus($('excelStatus'),'❌ Import Excel ล้มเหลว: '+err.message);
+    setStatus(excelStatus, 'Import Excel ล้มเหลว: ' + err.message);
   }finally{
-    $('excelBtn').disabled=false;
+    $('excelBtn').disabled = false;
+    excelStatus.classList.remove('loading');
   }
 });
 
-$('textBtn').addEventListener('click',async()=>{
-  const txt=$('raw_text').value.trim();
-  if(!txt){setStatus($('textStatus'),'กรุณาวางข้อความ หรือเลือกไฟล์ .txt ก่อน');return;}
-  const fd=new FormData();fd.append('raw_text',txt);
-  $('textBtn').disabled=true;
-  setStatus($('textStatus'),'กำลัง Import Text → /api/import/text ...',true);
+$('textBtn').addEventListener('click', async () => {
+  const txt = rawText.value.trim();
+  if(!txt){ setStatus(textStatus, 'กรุณาวางข้อความ หรือเลือกไฟล์ .txt ก่อน'); return; }
+  const fd = new FormData();
+  fd.append('raw_text', txt);
+  $('textBtn').disabled = true;
+  setStatus(textStatus, 'กำลัง Import Text → /api/import/text ...', true);
   try{
-    const res=await fetch('/api/import/text',{method:'POST',body:fd});
-    const data=await res.json();
-    if(!res.ok){setStatus($('textStatus'),data.detail||pretty(data));return;}
-    setStatus($('textStatus'),'✅ Import Text สำเร็จ\n'+pretty(data));
+    const res = await fetch('/api/import/text', { method:'POST', body: fd });
+    const data = await res.json();
+    if(!res.ok){ setStatus(textStatus, data.detail || pretty(data)); return; }
+    setStatus(textStatus, 'Import Text สำเร็จ\n' + pretty(data));
   }catch(err){
-    setStatus($('textStatus'),'❌ Import Text ล้มเหลว: '+err.message);
+    setStatus(textStatus, 'Import Text ล้มเหลว: ' + err.message);
   }finally{
-    $('textBtn').disabled=false;
+    $('textBtn').disabled = false;
+    textStatus.classList.remove('loading');
   }
 });
+
+
 </script>
 </body>
 </html>
