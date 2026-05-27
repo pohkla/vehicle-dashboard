@@ -477,7 +477,7 @@ img,canvas,svg,table{max-width:100%;}
 
 
 
-/* v14.14 Ray UI/UX Upgrade - blocks.so/ai inspired polish */
+/* v14.15 Dark Mode Balance Fix - blocks.so/ai inspired polish */
 :root{
   --ray-bg-soft:#f8fbff;
   --ray-primary:#2563eb;
@@ -537,6 +537,157 @@ body.dark .status-pill{background:rgba(15,23,42,.92)!important;color:#dbeafe!imp
 body.dark .status-pill span:not(.dot){color:#dbeafe!important;}
 @media(max-width:1080px){.hero{grid-template-columns:1fr!important}.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.total-card{overflow-x:auto}.summary-table.expense-enabled{min-width:720px}}
 @media(max-width:760px){.page{width:100%!important;padding:14px 12px 42px!important}.compact-range-toolbar{position:relative!important;top:0!important;border-radius:22px!important}.compact-range-title h2{font-size:20px!important}.compact-range-title h2:before{width:30px;height:30px;border-radius:11px}.hero{gap:12px!important}.hybrid-card.primary,.total-card,.panel,.toolbar.daily-toolbar,.day-card{border-radius:22px!important}.kpi-grid{grid-template-columns:1fr!important;gap:10px!important}.amount{font-size:34px!important}.hybrid-total{font-size:38px!important}.daily-filter-group{grid-template-columns:1fr!important}.daily-filter-group .btn,.daily-filter-group .nav-btn{width:100%!important}.summary-table.expense-enabled{font-size:12px!important}.version-credit{position:static!important;margin:14px 0 0!important;display:inline-block!important}}
+
+
+
+/* v14.15 Dark Mode Balance + Proportion Fix */
+:root{
+  --ray-dark-bg:#070b16;
+  --ray-dark-surface:#101827;
+  --ray-dark-surface-2:#141f32;
+  --ray-dark-surface-3:#18243a;
+  --ray-dark-line:rgba(148,163,184,.20);
+  --ray-dark-text:#f8fafc;
+  --ray-dark-muted:#b6c2d2;
+}
+body.dark{
+  --bg:var(--ray-dark-bg)!important;
+  --card:var(--ray-dark-surface)!important;
+  --text:var(--ray-dark-text)!important;
+  --muted:var(--ray-dark-muted)!important;
+  --line:var(--ray-dark-line)!important;
+  background:
+    radial-gradient(circle at 10% -4%,rgba(37,99,235,.22),transparent 30%),
+    radial-gradient(circle at 88% 2%,rgba(20,184,166,.14),transparent 30%),
+    linear-gradient(180deg,#08111f 0%,#070b16 46%,#0a1020 100%)!important;
+}
+body.dark .page{width:min(1180px,94vw)!important;padding-top:20px!important;}
+body.dark .compact-range-toolbar{
+  background:linear-gradient(180deg,rgba(15,23,42,.96),rgba(10,16,31,.94))!important;
+  border-color:rgba(96,165,250,.16)!important;
+  box-shadow:0 20px 58px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.04)!important;
+}
+body.dark .compact-range-title h2,
+body.dark h1,body.dark h2,body.dark h3,
+body.dark .day-title,body.dark .vehicle-title,
+body.dark .row-title,body.dark .kpi-title{color:#f8fafc!important;}
+body.dark .compact-range-title .date-helper,
+body.dark .label,body.dark .page-info,body.dark .hybrid-label,
+body.dark .mini-label,body.dark .line span{color:#b6c2d2!important;}
+body.dark .range-main,
+body.dark .quick-actions,
+body.dark .date-input,
+body.dark .date-select,
+body.dark .search-input{
+  background:#0b1322!important;
+  color:#f1f5f9!important;
+  border-color:rgba(148,163,184,.22)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03)!important;
+}
+body.dark .range-icon{background:#17223a!important;color:#dbeafe!important;}
+body.dark .quick-btn{color:#dbeafe!important;}
+body.dark .quick-btn:hover,body.dark .quick-btn.active{
+  background:#1d2b45!important;
+  color:#fff!important;
+  box-shadow:0 8px 20px rgba(0,0,0,.22)!important;
+}
+body.dark .apply-compact{background:linear-gradient(135deg,#2563eb,#14b8a6)!important;color:#fff!important;}
+body.dark .hero{grid-template-columns:minmax(0,1fr) minmax(410px,.96fr)!important;gap:18px!important;}
+body.dark .hybrid-card.primary,
+body.dark .total-card,
+body.dark .panel,
+body.dark .toolbar.daily-toolbar,
+body.dark .company-kpi,
+body.dark .kpi{
+  background:linear-gradient(180deg,rgba(16,24,39,.96),rgba(10,16,31,.94))!important;
+  border-color:rgba(148,163,184,.16)!important;
+  box-shadow:0 18px 48px rgba(0,0,0,.28)!important;
+}
+body.dark .hybrid-card.primary:after,
+body.dark .kpi:after{opacity:.28!important;}
+body.dark .amount{color:#f8fafc!important;}
+body.dark .hybrid-total{color:#f8fafc!important;}
+body.dark .expense-mini-card{
+  background:linear-gradient(180deg,rgba(18,27,44,.96),rgba(11,19,34,.94))!important;
+  border-color:rgba(148,163,184,.16)!important;
+}
+body.dark .summary-table{background:transparent!important;border-radius:16px!important;}
+body.dark .summary-table th{
+  background:#142038!important;
+  color:#dbeafe!important;
+  border-bottom:1px solid rgba(148,163,184,.16)!important;
+}
+body.dark .summary-table td{
+  background:#0f1729!important;
+  color:#e5e7eb!important;
+  border-bottom:1px solid rgba(148,163,184,.12)!important;
+}
+body.dark .summary-table .clickable-row:hover td{background:#16233a!important;}
+body.dark .summary-subitem{
+  background:#111b2e!important;
+  border-color:rgba(148,163,184,.14)!important;
+}
+body.dark .breakdown-row,
+body.dark li,
+body.dark .money-pill,
+body.dark .company,
+body.dark .mini-chip,
+body.dark .badge{
+  background:#121d30!important;
+  color:#e5e7eb!important;
+  border-color:rgba(148,163,184,.14)!important;
+}
+body.dark .status-pill{
+  background:#10243a!important;
+  color:#dbeafe!important;
+  border-color:rgba(45,212,191,.22)!important;
+}
+body.dark .day-card{
+  background:linear-gradient(180deg,#101827,#0b1220)!important;
+  border-color:rgba(148,163,184,.16)!important;
+  box-shadow:0 16px 38px rgba(0,0,0,.26)!important;
+}
+body.dark .day-card.high{background:linear-gradient(180deg,#12213a,#0b1220)!important;border-color:rgba(96,165,250,.26)!important;}
+body.dark .day-card.low{opacity:.94!important;}
+body.dark .day-head{
+  background:linear-gradient(180deg,#152238,#101827)!important;
+  color:#f8fafc!important;
+  border-bottom:1px solid rgba(148,163,184,.12)!important;
+  padding:15px 18px!important;
+}
+body.dark .day-card:not(.open) .day-head{
+  min-height:68px!important;
+}
+body.dark .day-body{
+  background:linear-gradient(180deg,#0d1525,#09111f)!important;
+}
+body.dark .day-card.open .day-body{border-top-color:rgba(148,163,184,.12)!important;}
+body.dark .day-money-summary{margin:14px 0 10px!important;gap:10px!important;}
+body.dark .money-pill.net{background:linear-gradient(135deg,rgba(37,99,235,.30),rgba(19,35,65,.92))!important;border-color:rgba(96,165,250,.24)!important;}
+body.dark .money-pill.collected{background:linear-gradient(135deg,rgba(20,184,166,.24),rgba(18,56,52,.82))!important;border-color:rgba(45,212,191,.22)!important;}
+body.dark .money-pill strong{color:#f8fafc!important;}
+body.dark .vehicle-group{margin-top:14px!important;}
+body.dark .vehicle-title-row{padding-top:4px!important;}
+body.dark ul{margin-top:8px!important;}
+body.dark li{margin-bottom:7px!important;}
+body.dark .money-chip.net,body.dark .item-money .net{background:rgba(37,99,235,.22)!important;color:#bfdbfe!important;border-color:rgba(96,165,250,.22)!important;}
+body.dark .money-chip.collected,body.dark .item-money .collected{background:rgba(20,184,166,.18)!important;color:#99f6e4!important;border-color:rgba(45,212,191,.20)!important;}
+body.dark .daily-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:16px!important;align-items:start!important;}
+body.dark .day-card:not(.open){min-height:auto!important;}
+body.dark .day-card:not(.open) .day-body{display:none!important;}
+body.dark .toolbar.daily-toolbar{padding:22px!important;margin-top:18px!important;}
+body.dark .daily-filter-group{gap:10px!important;}
+body.dark .version-credit{background:#0b1322!important;color:#94a3b8!important;border-color:rgba(148,163,184,.18)!important;}
+body.dark .loading-box{background:#111b2e!important;color:#f8fafc!important;border:1px solid rgba(148,163,184,.18)!important;}
+@media(max-width:1080px){
+  body.dark .page{width:100%!important;}
+  body.dark .hero,body.dark .daily-grid{grid-template-columns:1fr!important;}
+}
+@media(max-width:760px){
+  body.dark .compact-range-toolbar{border-radius:20px!important;}
+  body.dark .toolbar.daily-toolbar{padding:16px 12px!important;}
+  body.dark .day-head{padding:13px 12px!important;}
+}
 
 </style></head>
 <body><div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><span class="spinner"></span><span id="loadingText">กำลังโหลดข้อมูล...</span></div></div><main class="page">
