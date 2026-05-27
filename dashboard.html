@@ -475,6 +475,69 @@ img,canvas,svg,table{max-width:100%;}
 /* v14.13.2 Expense summary from Excel right-side table */
 .expense-mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0 18px}.expense-mini-card{border:1px solid var(--line);border-radius:18px;padding:14px 16px;background:rgba(248,250,252,.76)}.expense-mini-card .mini-label{font-size:13px;font-weight:800;color:var(--muted);margin-bottom:6px}.expense-mini-card .mini-value{font-size:24px;font-weight:800}.expense-mini-card.expense .mini-value,.expense-amount{color:#dc2626!important}.expense-mini-card.remaining .mini-value,.remaining-amount{color:#16a34a!important}.summary-table.expense-enabled th,.summary-table.expense-enabled td{white-space:nowrap}.summary-table.expense-enabled td:nth-child(4),.summary-table.expense-enabled th:nth-child(4){text-align:right;color:#dc2626;font-weight:800}.summary-table.expense-enabled td:nth-child(5),.summary-table.expense-enabled th:nth-child(5){text-align:right;color:#16a34a;font-weight:800}.summary-subitem.expense-sub{grid-template-columns:1.15fr repeat(4,1fr)}.summary-subitem .expense{color:#dc2626!important}.summary-subitem .remaining{color:#16a34a!important}body.dark .expense-mini-card{background:rgba(15,23,42,.56);border-color:rgba(148,163,184,.14)}body.dark .expense-mini-card .mini-label{color:#cbd5e1!important}body.dark .expense-mini-card.expense .mini-value,body.dark .expense-amount{color:#f87171!important}body.dark .expense-mini-card.remaining .mini-value,body.dark .remaining-amount{color:#4ade80!important}body.dark .summary-table.expense-enabled td:nth-child(4),body.dark .summary-table.expense-enabled th:nth-child(4){color:#f87171!important}body.dark .summary-table.expense-enabled td:nth-child(5),body.dark .summary-table.expense-enabled th:nth-child(5){color:#4ade80!important}@media(max-width:780px){.expense-mini-grid{grid-template-columns:1fr}.summary-subitem.expense-sub{grid-template-columns:1fr 1fr}.summary-subitem.expense-sub .sub-category-name{grid-column:1/-1}.summary-table.expense-enabled{font-size:12px}.summary-table.expense-enabled th,.summary-table.expense-enabled td{white-space:normal}}
 
+
+
+/* v14.14 Ray UI/UX Upgrade - blocks.so/ai inspired polish */
+:root{
+  --ray-bg-soft:#f8fbff;
+  --ray-primary:#2563eb;
+  --ray-cyan:#14b8a6;
+  --ray-ink:#0f172a;
+  --ray-border:rgba(148,163,184,.18);
+  --ray-shadow:0 24px 70px rgba(15,23,42,.10);
+}
+body{letter-spacing:-.01em;}
+.page{padding-top:22px!important;}
+.compact-range-toolbar{
+  border:1px solid rgba(255,255,255,.75)!important;
+  box-shadow:0 18px 55px rgba(37,99,235,.10), inset 0 1px 0 rgba(255,255,255,.7)!important;
+  background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(248,250,252,.82))!important;
+  backdrop-filter:blur(18px)!important;
+}
+.compact-range-title h2{display:flex;align-items:center;gap:10px;font-size:24px!important;}
+.compact-range-title h2:before{content:"✨";display:inline-grid;place-items:center;width:36px;height:36px;border-radius:14px;background:linear-gradient(135deg,#eff6ff,#ccfbf1);box-shadow:inset 0 1px 0 rgba(255,255,255,.65)}
+.range-main,.quick-actions{border-color:rgba(37,99,235,.14)!important;box-shadow:0 12px 35px rgba(37,99,235,.08)!important;}
+.quick-btn,.apply-compact{transition:transform .18s ease,background .18s ease,box-shadow .18s ease!important;}
+.quick-btn:hover,.apply-compact:hover{transform:translateY(-1px)}
+.hero{grid-template-columns:minmax(0,.98fr) minmax(420px,1.02fr)!important;gap:18px!important;align-items:stretch!important;}
+.hybrid-card.primary,.total-card,.kpi,.panel,.toolbar.daily-toolbar,.day-card,.company-kpi{
+  border:1px solid rgba(255,255,255,.72)!important;
+  box-shadow:var(--ray-shadow)!important;
+  backdrop-filter:blur(18px)!important;
+}
+.hybrid-card.primary{background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(239,246,255,.86))!important;position:relative;overflow:hidden;}
+.hybrid-card.primary:after{content:"";position:absolute;right:-70px;top:-90px;width:260px;height:260px;border-radius:999px;background:radial-gradient(circle,rgba(20,184,166,.16),transparent 68%);pointer-events:none;}
+.total-card{background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,250,252,.88))!important;}
+.amount,.hybrid-total,.value{letter-spacing:-.04em;}
+.status-pill{border:1px solid rgba(20,184,166,.25)!important;background:linear-gradient(135deg,#ecfeff,#f8fafc)!important;}
+.expense-mini-grid{gap:10px!important;}
+.expense-mini-card{background:linear-gradient(180deg,#ffffff,#f8fafc)!important;border:1px solid rgba(148,163,184,.16)!important;box-shadow:0 10px 30px rgba(15,23,42,.045)!important;}
+.summary-table{border-spacing:0!important;border-collapse:separate!important;overflow:hidden;border-radius:18px;}
+.summary-table th{background:rgba(239,246,255,.72)!important;color:#1e3a8a!important;font-size:12px!important;}
+.summary-table td{background:rgba(255,255,255,.64)!important;}
+.kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;}
+.kpi{min-height:132px;background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(248,250,252,.84))!important;}
+.kpi:before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(37,99,235,.08),transparent 46%,rgba(20,184,166,.08));opacity:.65;pointer-events:none;}
+.kpi>*{position:relative;z-index:1;}
+.toolbar.daily-toolbar{background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(248,250,252,.86))!important;}
+.daily-filter-group .search-input,.daily-filter-group .date-select{height:46px!important;border-radius:16px!important;}
+.btn,.btn2,.btnToggle,.nav-btn{border-radius:16px!important;}
+.day-card{overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(248,250,252,.84))!important;}
+.day-head{background:linear-gradient(135deg,#f8fafc,#eff6ff)!important;}
+.vehicle-item-row,.breakdown-row,li{border-radius:16px!important;}
+.version-credit{font-size:10px!important;box-shadow:0 10px 30px rgba(15,23,42,.08)!important;}
+body.dark .compact-range-toolbar,body.dark .hybrid-card.primary,body.dark .total-card,body.dark .kpi,body.dark .panel,body.dark .toolbar.daily-toolbar,body.dark .day-card,body.dark .company-kpi{
+  border-color:rgba(148,163,184,.14)!important;background:linear-gradient(180deg,rgba(15,23,42,.92),rgba(2,6,23,.82))!important;box-shadow:0 24px 70px rgba(0,0,0,.28)!important;
+}
+body.dark .compact-range-title h2:before{background:linear-gradient(135deg,rgba(37,99,235,.28),rgba(20,184,166,.20));}
+body.dark .summary-table th{background:rgba(30,58,138,.26)!important;color:#bfdbfe!important;}
+body.dark .summary-table td{background:rgba(15,23,42,.40)!important;}
+body.dark .expense-mini-card{background:rgba(15,23,42,.62)!important;border-color:rgba(148,163,184,.14)!important;}
+body.dark .status-pill{background:rgba(15,23,42,.92)!important;color:#dbeafe!important;border-color:rgba(45,212,191,.22)!important;}
+body.dark .status-pill span:not(.dot){color:#dbeafe!important;}
+@media(max-width:1080px){.hero{grid-template-columns:1fr!important}.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.total-card{overflow-x:auto}.summary-table.expense-enabled{min-width:720px}}
+@media(max-width:760px){.page{width:100%!important;padding:14px 12px 42px!important}.compact-range-toolbar{position:relative!important;top:0!important;border-radius:22px!important}.compact-range-title h2{font-size:20px!important}.compact-range-title h2:before{width:30px;height:30px;border-radius:11px}.hero{gap:12px!important}.hybrid-card.primary,.total-card,.panel,.toolbar.daily-toolbar,.day-card{border-radius:22px!important}.kpi-grid{grid-template-columns:1fr!important;gap:10px!important}.amount{font-size:34px!important}.hybrid-total{font-size:38px!important}.daily-filter-group{grid-template-columns:1fr!important}.daily-filter-group .btn,.daily-filter-group .nav-btn{width:100%!important}.summary-table.expense-enabled{font-size:12px!important}.version-credit{position:static!important;margin:14px 0 0!important;display:inline-block!important}}
+
 </style></head>
 <body><div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><span class="spinner"></span><span id="loadingText">กำลังโหลดข้อมูล...</span></div></div><main class="page">
 <section class="toolbar top-toolbar compact-range-toolbar"><div class="compact-range-title"><h2>เลือกช่วงวันที่ Dashboard</h2><p class="date-helper">เลือกช่วงวันที่แบบใหม่ มีผลกับข้อมูลทั้งหน้า Dashboard</p></div><div class="compact-range-control"><button class="range-main" id="rangeOpenBtn" type="button"><span class="range-icon">📅</span><span id="rangeDisplayText">01 May 2026 → 31 May 2026</span></button><input id="rangePicker" type="text" aria-label="เลือกช่วงวันที่" autocomplete="off"><input id="startDate" type="hidden"><input id="endDate" type="hidden"><div class="quick-actions"><button class="quick-btn" id="todayBtn" type="button">วันนี้</button><button class="quick-btn" id="thisWeekBtn" type="button">สัปดาห์นี้</button><button class="quick-btn active" id="thisMonthBtn" type="button">เดือนนี้</button><button class="quick-btn muted" id="resetBtn" type="button">ดูทั้งหมด</button><a class="quick-btn nav-btn" href="/executive">Executive AI</a><button class="quick-btn theme-toggle" id="themeToggleBtn" type="button">🌙 Dark</button></div></div></section>
@@ -488,7 +551,7 @@ img,canvas,svg,table{max-width:100%;}
 
 <section class="toolbar daily-toolbar"><h2>รายการแยกรายวัน</h2><div class="filter-group daily-filter-group"><input class="search-input" id="searchBox" placeholder="ค้นหาทะเบียน / เลขกรมธรรม์ / บริษัท"><select class="date-select" id="dateFilter"><option value="all">ดูทั้งหมด</option></select><button class="btn btn2" id="showAllBtn">ดูทั้งหมด</button><button class="btn btnToggle active" id="viewModeToggleBtn" type="button">📄 Detail</button><button class="btn btnDark" id="exportPdfBtn">Export PDF</button><button class="btn btnDark" id="exportExcelBtn">Export Excel</button></div></section>
 <section class="daily-grid" id="cards"></section><div class="pagination"><button class="btn btn2" id="prevPageBtn">ก่อนหน้า</button><span class="page-info" id="pageInfo">Page 1</span><button class="btn btn2" id="nextPageBtn">ถัดไป</button></div><p class="status-pill" id="status">Loading...</p>
-<div class="version-credit">Version: __APP_VERSION__</div>
+<div class="version-credit">Version: __APP_VERSION__ · Ray UI/UX Upgrade</div>
 </main>
 <script>
 let report=null,allDays=[],filteredDays=[],viewDays=[],dailyChart=null,rangePickerInstance=null;let currentPage=1,pageSize=8,viewMode='detail',activeSelected='all';const box=id=>document.getElementById(id);const money=n=>Math.round(n||0).toLocaleString('th-TH');function destroy(){if(dailyChart)dailyChart.destroy()}function fmtDate(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}function parseISODate(v){const parts=String(v||'').split('-').map(Number);return parts.length===3?new Date(parts[0],parts[1]-1,parts[2]):new Date()}function prettyRange(s,e){if(!s&&!e)return 'ข้อมูลสะสมทั้งหมด';const opt={day:'2-digit',month:'short',year:'numeric'};const a=s?parseISODate(s).toLocaleDateString('en-GB',opt):'เริ่มต้น';const b=e?parseISODate(e).toLocaleDateString('en-GB',opt):'สิ้นสุด';return `${a} → ${b}`}function updateRangeLabel(){const s=box('startDate')?.value||'',e=box('endDate')?.value||'';if(box('rangeDisplayText'))box('rangeDisplayText').textContent=prettyRange(s,e);if(rangePickerInstance&&s&&e)rangePickerInstance.setDate([s,e],false,'Y-m-d')}function setActiveQuick(id){['todayBtn','thisWeekBtn','thisMonthBtn'].forEach(x=>box(x)?.classList.remove('active'));if(id)box(id)?.classList.add('active')}function setRange(start,end,quickId){box('startDate').value=start||'';box('endDate').value=end||'';setActiveQuick(quickId);updateRangeLabel()}function setCurrentMonthDefault(){const now=new Date();setRange(fmtDate(new Date(now.getFullYear(),now.getMonth(),1)),fmtDate(new Date(now.getFullYear(),now.getMonth()+1,0)),'thisMonthBtn')}function setToday(){const now=new Date();setRange(fmtDate(now),fmtDate(now),'todayBtn')}function setThisWeek(){const now=new Date();const day=now.getDay();const diffToMonday=(day===0?-6:1-day);const start=new Date(now);start.setDate(now.getDate()+diffToMonday);const end=new Date(start);end.setDate(start.getDate()+6);setRange(fmtDate(start),fmtDate(end),'thisWeekBtn')}function setupRange(){const dates=allDays.map(d=>d.isoDate).filter(Boolean).sort();if(!box('startDate').value)box('startDate').value=dates[0]||'';if(!box('endDate').value)box('endDate').value=dates[dates.length-1]||'';updateRangeLabel()}function itemText(item){return (item&&typeof item==='object')?(item.text||''):String(item||'')}function itemNet(item){return Number((item&&typeof item==='object')?(item.net_amount||0):0)||0}function itemCollected(item){return Number((item&&typeof item==='object')?(item.collected_amount||0):0)||0}function flattenRows(days){const rows=[];days.forEach(day=>day.groups.forEach(g=>g.items.forEach(item=>rows.push({date:day.date,type:g.title,company:g.company||'',item:itemText(item),net_amount:itemNet(item),collected_amount:itemCollected(item)}))));return rows}

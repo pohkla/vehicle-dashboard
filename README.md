@@ -21,3 +21,9 @@ Deploy on Render with existing ENV:
 ## v14.10 Datepicker Dark Mode Fix
 - Fixed Flatpickr calendar contrast in Dark Mode.
 - Improved selected/range/day/month/year readability.
+
+
+## v14.14 Ray UI/UX Upgrade
+- อัปเกรด UI/UX หน้า `/dashboard`, `/admin`, `/executive` ให้เป็น Modern AI Product style ตามแนว blocks.so/ai
+- ปรับ Glass Card, Sticky Toolbar, Compact Controls, Mobile Responsive และ Table overflow สำหรับจอเล็ก
+- ไม่เปลี่ยน logic การคำนวณรายได้/รายจ่ายหลัก เพื่อลดความเสี่ยงข้อมูลผิดเพี้ยน
